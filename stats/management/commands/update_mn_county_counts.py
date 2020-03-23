@@ -16,7 +16,6 @@ class Command(BaseCommand):
             return r.content
         else:
             return False
-        # print(r.content)
 
     def get_county_data(self, html):
         soup = BeautifulSoup(html, 'html.parser')
@@ -41,15 +40,25 @@ class Command(BaseCommand):
             print('WARNING: Scraper error. Not proceeding.')
         else:
             county_data = self.get_county_data(html)
-            # print(county_data)
 
             today = datetime.date.today()
             print(today)
 
             for observation in county_data:
                 # Check if there is already an entry today
-                obj, created = CountyTestDate.objects.update_or_create(
-                    county__name=observation[0],
-                    scrape_datetime__date=today,
-                    defaults={'case_count': observation[1]},
-                )
+                try:
+                    existing_today_observation = CountyTestDate.objects.get(
+                        county__name__iexact=observation[0],
+                        scrape_date=today
+                    )
+                    print('Updating {} County: {}'.format(observation[0], observation[1]))
+                    existing_today_observation.case_count = observation[1]
+                    existing_today_observation.save()
+                except:
+                    print('Creating 1st {} County record of day: {}'.format(observation[0], observation[1]))
+                    new_observation = CountyTestDate(
+                        county=County.objects.get(name__iexact=observation[0]),
+                        scrape_date=today,
+                        case_count=observation[1]
+                    )
+                    new_observation.save()
