@@ -1,1 +1,1 @@
-# covid-scraper
+# covid_scraper
