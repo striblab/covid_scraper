@@ -8,7 +8,7 @@ from stats.models import County, CountyTestDate
 
 
 class Command(BaseCommand):
-    help = 'Check for new or updated results by date from Minnesota Department of Health table: https://www.health.state.mn.us/diseases/coronavirus/situation.html'
+    help = 'Dump a CSV of the latest cumulative count of county-by-county positive tests.'
 
 
     def handle(self, *args, **options):
