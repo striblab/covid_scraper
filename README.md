@@ -12,5 +12,5 @@ python manage.py update_mn_county_counts
 
 ## To export new CSVs
 ```
-
+python manage.py dump_mn_latest_counts
 ```
