@@ -25,7 +25,7 @@ class Command(BaseCommand):
                     row = {
                         'county_fips': c.fips,
                         'county_name': c.name,
-                        'total_positive_tests': latest_observation.case_count,
+                        'total_positive_tests': latest_observation.cumulative_count,
                         'latitude': c.latitude,
                         'longitude': c.longitude,
                     }

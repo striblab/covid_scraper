@@ -45,6 +45,14 @@ class Command(BaseCommand):
             print(today)
 
             for observation in county_data:
+                previous_county_observation = CountyTestDate.objects.filter(county__name__iexact=observation[0], scrape_date__lt=today).order_by('-scrape_date').first()
+                if previous_county_observation:
+                    previous_county_total = previous_county_observation.cumulative_count
+                else:
+                    previous_county_total = 0
+
+                daily_count = int(observation[1]) - previous_county_total
+
                 # Check if there is already an entry today
                 try:
                     existing_today_observation = CountyTestDate.objects.get(
@@ -52,13 +60,15 @@ class Command(BaseCommand):
                         scrape_date=today
                     )
                     print('Updating {} County: {}'.format(observation[0], observation[1]))
-                    existing_today_observation.case_count = observation[1]
+                    existing_today_observation.daily_count = daily_count
+                    existing_today_observation.cumulative_count = observation[1]
                     existing_today_observation.save()
                 except:
                     print('Creating 1st {} County record of day: {}'.format(observation[0], observation[1]))
                     new_observation = CountyTestDate(
                         county=County.objects.get(name__iexact=observation[0]),
                         scrape_date=today,
-                        case_count=observation[1]
+                        daily_count=daily_count,
+                        cumulative_count=observation[1]
                     )
                     new_observation.save()

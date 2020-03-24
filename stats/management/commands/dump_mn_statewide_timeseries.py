@@ -17,19 +17,21 @@ class Command(BaseCommand):
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
 
-            # previous_total = 0
+            previous_total = 0
             for date in CountyTestDate.objects.all().order_by('scrape_date').values('scrape_date').distinct():
-                # print(date)
-                # hmm how do we figure this out because not all most recent dates will be the same.
-                # this is wronge previous_total = CountyTestDate.objects.filter(scrape_date__lt=date['scrape_date']).order_by('-scrape_date').aggregate(Sum('case_count'))['case_count__sum']
-                total_as_of_date = CountyTestDate.objects.filter(scrape_date=date['scrape_date']).aggregate(Sum('case_count'))['case_count__sum']
-                # print(total_as_of_date)
-                new_cases = total_as_of_date - previous_total
-                previous_total = total_as_of_date
-                # print(total_as_of_date, new_cases)
+                # Get the totals for each county as of that date. The latest observation may be an earlier date.
+                county_totals = 0
+                for c in County.objects.all():
+                    latest_county_observation = CountyTestDate.objects.filter(county=c, scrape_date__lte=date['scrape_date']).order_by('-scrape_date').first()
+                    if latest_county_observation:
+                        county_totals += latest_county_observation.cumulative_count
+
+                new_cases = county_totals - previous_total
+                previous_total = county_totals
+
                 row = {
                     'date': date['scrape_date'].strftime('%Y-%m-%d'),
-                    'total_positive_tests': total_as_of_date,
+                    'total_positive_tests': county_totals,
                     'new_positive_tests': new_cases
                 }
                 writer.writerow(row)

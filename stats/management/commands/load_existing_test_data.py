@@ -34,29 +34,30 @@ class Command(BaseCommand):
 
             for text_date, counties in records.items():
                 parsed_date = datetime.strptime(text_date, '%m/%d/%y').date()
-                for county, total in counties.items():
+                for county, daily_count in counties.items():
                     county_obj = County.objects.get(name__iexact=county)
                     # Get existing total to add to
                     previous_total_obj = CountyTestDate.objects.filter(county=county_obj, scrape_date__lt=parsed_date).order_by('-scrape_date').first()
                     if previous_total_obj:
-                        print('{} + {}'.format(previous_total_obj.case_count, total))
-                        new_total = previous_total_obj.case_count + total
+                        print('{} + {}'.format(previous_total_obj.cumulative_count, daily_count))
+                        new_total = previous_total_obj.cumulative_count + daily_count
                     else:
-                        new_total = total
-                        print(total)
+                        new_total = daily_count
+                        print(daily_count)
 
                     print(parsed_date, county, new_total)
-                    # obj, created = CountyTestDate.objects.update_or_create(
-                    #     county=county_obj,
-                    #     scrape_date=parsed_date,
-                    #     defaults={'case_count': new_total}
-                    # )
-                    obj = CountyTestDate(
+                    obj, created = CountyTestDate.objects.update_or_create(
                         county=county_obj,
                         scrape_date=parsed_date,
-                        case_count=new_total
+                        defaults={'daily_count': daily_count, 'cumulative_count': new_total}
                     )
-                    obj.save()
+                    # obj = CountyTestDate(
+                    #     county=county_obj,
+                    #     scrape_date=parsed_date,
+                    #     daily_count=daily_count,
+                    #     cumulative_count=new_total
+                    # )
+                    # obj.save()
 
                 # else:
                 #     records[row['DATE']]

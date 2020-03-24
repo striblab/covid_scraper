@@ -15,3 +15,7 @@ python manage.py update_mn_county_counts
 python manage.py dump_mn_latest_counts
 python manage.py dump_mn_statewide_timeseries
 ```
+
+# To build a (Dockerized) scraper:
+docker build -t covid_scraper -f Dockerfile.scrape .
+docker run --detach=false --env-file .env.prod covid_scraper
