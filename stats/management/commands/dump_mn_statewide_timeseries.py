@@ -10,7 +10,6 @@ from stats.models import County, CountyTestDate
 class Command(BaseCommand):
     help = 'Calculate change per day to export cumulative and daily counts'
 
-
     def handle(self, *args, **options):
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_statewide_timeseries.csv'), 'w') as csvfile:
             fieldnames = ['date', 'total_positive_tests', 'new_positive_tests']
@@ -28,6 +27,7 @@ class Command(BaseCommand):
 
                 new_cases = county_totals - previous_total
                 previous_total = county_totals
+
 
                 row = {
                     'date': date['scrape_date'].strftime('%Y-%m-%d'),

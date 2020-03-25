@@ -33,7 +33,7 @@ class Command(BaseCommand):
             print(records)
 
             for text_date, counties in records.items():
-                parsed_date = datetime.strptime(text_date, '%m/%d/%y').date()
+                parsed_date = datetime.strptime(text_date, '%m/%d/%Y').date()
                 for county, daily_count in counties.items():
                     county_obj = County.objects.get(name__iexact=county)
                     # Get existing total to add to

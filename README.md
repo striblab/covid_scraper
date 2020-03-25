@@ -5,6 +5,11 @@
 python manage.py loaddata covid_scraper/fixtures/County.json
 ```
 
+## To import previously created manual data (only do this once, ask Mike first!)
+```
+python manage.py load_existing_test_data
+```
+
 ## To download the latest county counts
 ```
 python manage.py update_mn_county_counts

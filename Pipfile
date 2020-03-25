@@ -5,11 +5,13 @@ verify_ssl = true
 
 [dev-packages]
 ipython = "*"
+awscli = "*"
 
 [packages]
 django = "*"
 requests = "*"
 beautifulsoup4 = "*"
+psycopg2-binary = "*"
 
 [requires]
 python_version = "3.8"

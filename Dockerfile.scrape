@@ -21,7 +21,7 @@ ENV DOCKYARD_SRVPROJ=$DOCKYARD_SRVHOME/$DOCKYARD_SRC
 
 # Update the default application repository sources list
 RUN apt-get update && apt-get -y upgrade
-RUN apt-get install -y nginx
+# RUN apt-get install -y nginx
 
 # Create application subdirectories
 WORKDIR $DOCKYARD_SRVHOME
@@ -37,6 +37,7 @@ COPY $DOCKYARD_SRC $DOCKYARD_SRVPROJ
 RUN pip install pipenv
 RUN pipenv lock --requirements > $DOCKYARD_SRVPROJ/requirements.txt
 RUN pip install -r $DOCKYARD_SRVPROJ/requirements.txt
+RUN pip install awscli
 
 # Copy entrypoint script into the image
 WORKDIR $DOCKYARD_SRVPROJ
