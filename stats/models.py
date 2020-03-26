@@ -12,6 +12,10 @@ class County(models.Model):
         return self.name
 
 
+class CurrentTotal(models.Model):
+    count = models.IntegerField(default=0)
+
+
 class CountyTestDate(models.Model):
     '''The daily total number of tests, according to the Minnesota Department of Health. If you scrape more than once a day, the count will be updated, so there is only 1 record per day.'''
     county = models.ForeignKey(County, on_delete=models.CASCADE)

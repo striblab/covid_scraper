@@ -6,7 +6,7 @@ import requests
 from django.conf import settings
 
 from django.core.management.base import BaseCommand
-from stats.models import County, CountyTestDate
+from stats.models import County, CountyTestDate, CurrentTotal
 
 
 class Command(BaseCommand):
@@ -43,9 +43,14 @@ class Command(BaseCommand):
 
             msg_output = '*Latest numbers from MPH:*\n\n'
 
+            updated_total = 0
+
             for c in County.objects.all().order_by('name'):
                 latest_observation = CountyTestDate.objects.filter(county=c).order_by('-scrape_date').first()
                 if latest_observation:
+
+                    updated_total += latest_observation.cumulative_count
+
                     row = {
                         'county_fips': c.fips,
                         'county_name': c.name,
@@ -68,4 +73,12 @@ class Command(BaseCommand):
                     print('{}: {}{}\n'.format(c.name, latest_observation.cumulative_count, change_text))
                     msg_output = msg_output + '{}: {}{}\n'.format(c.name, latest_observation.cumulative_count, change_text)
 
-            self.slack_latest(msg_output)
+            previous_total = CurrentTotal.objects.all().first()
+            if not previous_total:
+                previous_total = CurrentTotal(count=0)
+            if updated_total != previous_total.count:
+                self.slack_latest(msg_output)
+                previous_total.count = updated_total
+                previous_total.save()
+            else:
+                self.slack_latest('Scraper update: No changes detected.')
