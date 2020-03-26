@@ -5,7 +5,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS").split(" ")
 DEBUG = int(os.environ.get("DEBUG", default=0))
 
-SLACK_WEBHOOK_ENDPOINT = os.environ.get(SLACK_WEBHOOK_ENDPOINT)
+SLACK_WEBHOOK_ENDPOINT = os.environ.get("SLACK_WEBHOOK_ENDPOINT")
 
 # RDS
 DATABASES = {

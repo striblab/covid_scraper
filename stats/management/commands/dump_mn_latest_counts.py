@@ -66,6 +66,8 @@ class Command(BaseCommand):
                         optional_plus = '+'
                         if latest_observation.daily_count < 0:
                             optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE *** '
+                        elif latest_observation.daily_count == latest_observation.cumulative_count:
+                            optional_plus = ':heavy_plus_sign: NEW COUNTY '
 
                         change_text = ' (:point_right: {}{} today)'.format(optional_plus, latest_observation.daily_count)
 
