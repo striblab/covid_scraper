@@ -13,8 +13,7 @@ class Command(BaseCommand):
     help = 'Dump a CSV of the latest cumulative count of county-by-county positive tests.'
 
     def slack_latest(self, text):
-        # endpoint = 'https://hooks.slack.com/services/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'  # robot-dojo
-        endpoint = 'https://hooks.slack.com/services/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'  # covid-tracking
+        endpoint = settings.SLACK_WEBHOOK_ENDPOINT
         headers = {
             'Content-Type': 'application/json; charset=utf-8',
         }
