@@ -21,6 +21,8 @@ class CountyTestDate(models.Model):
     county = models.ForeignKey(County, on_delete=models.CASCADE)
     daily_count = models.IntegerField()
     cumulative_count = models.IntegerField()
+    daily_deaths = models.IntegerField(default=0)  # Deaths on this date
+    cumulative_deaths = models.IntegerField(default=0)  # Deaths on this date
     scrape_date = models.DateField()
     last_update = models.DateTimeField(auto_now=True)
 

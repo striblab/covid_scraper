@@ -12,6 +12,7 @@ django = "*"
 requests = "*"
 beautifulsoup4 = "*"
 psycopg2-binary = "*"
+pandas = "*"
 
 [requires]
 python_version = "3.8"
