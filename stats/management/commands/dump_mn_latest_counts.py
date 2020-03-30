@@ -12,7 +12,7 @@ class Command(BaseCommand):
     help = 'Dump a CSV of the latest cumulative count of county-by-county positive tests.'
 
     def handle(self, *args, **options):
-        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_positive_tests_by_county.csv'), 'w') as csvfile:
+        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_positive_tests_by_county.csv'), 'w') as csvfile:
             # fieldnames = ['first_name', 'last_name']
             fieldnames = ['county_fips', 'county_name', 'total_positive_tests', 'total_deaths', 'latitude', 'longitude']
             # COUNTY ID	COUNTY	COUNTA of COUNTY ID	COUNTUNIQUE of COMMUNITY TRANSMISSION	COUNTA of FATALITIES	MAX of LAT	MAX of LONG

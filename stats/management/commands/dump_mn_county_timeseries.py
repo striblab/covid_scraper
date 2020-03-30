@@ -32,7 +32,7 @@ class Command(BaseCommand):
 
             rows.append(row)
 
-        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_county_timeseries.csv'), 'w') as csvfile:
+        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_county_timeseries.csv'), 'w') as csvfile:
 
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
@@ -53,7 +53,7 @@ class Command(BaseCommand):
             }
             rows.append(row)
 
-        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_county_timeseries_tall.csv'), 'w') as csvfile:
+        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_county_timeseries_tall.csv'), 'w') as csvfile:
 
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
@@ -61,4 +61,4 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.dump_tall_timeseries()
-        # self.dump_wide_timeseries()
+        self.dump_wide_timeseries()

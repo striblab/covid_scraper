@@ -11,7 +11,7 @@ class Command(BaseCommand):
     help = 'Calculate change per day to export cumulative and daily counts'
 
     def handle(self, *args, **options):
-        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_statewide_timeseries.csv'), 'w') as csvfile:
+        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_timeseries.csv'), 'w') as csvfile:
             fieldnames = ['date', 'total_positive_tests', 'new_positive_tests']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
