@@ -132,3 +132,4 @@ covid_scraper/data
 .env.*
 covid_scraper/settings/local_settings.py
 keys
+covid_scraper/exports

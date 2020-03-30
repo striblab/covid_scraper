@@ -17,9 +17,10 @@ class Command(BaseCommand):
 
         ssh_cmd = 'ssh -i /srv/keys/.docker_deploy_rsa'
         with repo.git.custom_environment(GIT_SSH_COMMAND=ssh_cmd):
+            # git.pull()
             git.add('mn_*.csv')
 
             if repo.is_dirty():
                 print('Changes found, committing and pushing.')
                 git.commit('-am', 'Updating scraper-generated files...')
-                git.push('origin', 'master')
+                git.push('--force', 'origin', 'master')
