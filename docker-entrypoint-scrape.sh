@@ -3,6 +3,7 @@ EXPORTS_ROOT=covid_scraper/exports/
 COUNTY_TESTS_FILENAME=mn_positive_tests_by_county
 STATEWIDE_TIMESERIES_FILENAME=mn_statewide_timeseries
 COUNTY_TIMESERIES_FILENAME=mn_county_timeseries
+COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
 NATIONAL_TIMESERIES_FILENAME=national_cases_deaths_by_county_timeseries
 NATIONAL_LATEST_FILENAME=national_cases_deaths_by_county_latest
 
@@ -85,11 +86,19 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
+  aws s3 cp $EXPORTS_ROOT$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TIMESERIES_TALL_FILENAME.csv \
+  --content-type=text/csv \
+  --acl public-read
+
   aws s3 cp $EXPORTS_ROOT$COUNTY_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TIMESERIES_FILENAME.csv \
   --content-type=text/csv \
   --acl public-read
 
   aws s3 cp $EXPORTS_ROOT$STATEWIDE_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/$STATEWIDE_TIMESERIES_FILENAME-$download_datetime.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TIMESERIES_TALL_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 

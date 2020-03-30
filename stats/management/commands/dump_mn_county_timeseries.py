@@ -15,7 +15,7 @@ class Command(BaseCommand):
         for n in range(int ((date2 - date1).days)+1):
             yield date1 + timedelta(n)
 
-    def handle(self, *args, **options):
+    def dump_wide_timeseries(self):
         dates = list(self.daterange(CountyTestDate.objects.all().order_by('scrape_date').first().scrape_date, datetime.date.today()))
 
         fieldnames = ['county'] + [d.strftime('%Y-%m-%d') for d in dates]
@@ -37,3 +37,28 @@ class Command(BaseCommand):
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
+
+    def dump_tall_timeseries(self):
+        fieldnames = ['date', 'county', 'daily_cases', 'cumulative_cases', 'daily_deaths', 'cumulative_deaths']
+        rows = []
+        for c in CountyTestDate.objects.all().order_by('scrape_date', 'county__name'):
+            print(c.scrape_date, c.county.name, c.cumulative_count)
+            row = {
+                'date': c.scrape_date.strftime('%Y-%m-%d'),
+                'county': c.county.name,
+                'daily_cases': c.daily_count,
+                'cumulative_cases': c.cumulative_count,
+                'daily_deaths': c.daily_deaths,
+                'cumulative_deaths': c.cumulative_deaths
+            }
+            rows.append(row)
+
+        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_county_timeseries_tall.csv'), 'w') as csvfile:
+
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+
+    def handle(self, *args, **options):
+        self.dump_tall_timeseries()
+        # self.dump_wide_timeseries()
