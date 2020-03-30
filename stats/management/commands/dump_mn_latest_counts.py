@@ -22,6 +22,7 @@ class Command(BaseCommand):
             msg_output = '*Latest numbers from MPH:*\n\n'
 
             updated_total = 0
+            statewide_daily_new_cases = 0
 
             for c in County.objects.all().order_by('name'):
                 latest_observation = CountyTestDate.objects.filter(county=c).order_by('-scrape_date').first()
@@ -39,6 +40,8 @@ class Command(BaseCommand):
                     }
 
                     writer.writerow(row)
+
+                    statewide_daily_new_cases += latest_observation.daily_count
 
                     # Slack lastest results
                     change_text = ''
@@ -58,7 +61,8 @@ class Command(BaseCommand):
             if not previous_total:
                 previous_total = CurrentTotal(count=0)
             if updated_total != previous_total.count:
-                slack_latest(msg_output)
+                slack_header = '*{} new county cases announced today statewide.*\n\n'.format(statewide_daily_new_cases)
+                slack_latest(slack_header + msg_output)
                 previous_total.count = updated_total
                 previous_total.save()
             else:
