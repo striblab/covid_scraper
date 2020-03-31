@@ -31,7 +31,7 @@ class Command(BaseCommand):
         county_data = []
 
         # Right now this is the only table on the page
-        table = soup.find('table')
+        table = soup.find_all('table')[1]
 
         for row in table.find_all('tr'):
             tds = row.find_all('td')
@@ -49,6 +49,7 @@ class Command(BaseCommand):
 
     def find_matching_deaths(self, deaths_obj, date, county_name):
         for row in deaths_obj:
+            # print(row['COUNTY'], datetime.datetime.strptime(row['DATE'], '%m/%d/%Y').date(), date, county_name)
             if row['COUNTY'] == county_name and datetime.datetime.strptime(row['DATE'], '%m/%d/%Y').date() == date:
                 return row['NUM_DEATHS']
         return 0
@@ -81,9 +82,11 @@ class Command(BaseCommand):
 
                     # Get death count for this county/date
                     daily_deaths = self.find_matching_deaths(deaths_obj, today, observation[0].strip())
+                    # print('daily deaths: {}'.format(daily_deaths))
                     cumulative_deaths = CountyTestDate.objects.filter(county__name__iexact=observation[0].strip()).aggregate(Sum('daily_deaths'))['daily_deaths__sum']
                     if not cumulative_deaths:
                         cumulative_deaths = daily_deaths
+                    # print('cumulative deaths: {}'.format(cumulative_deaths))
 
                     # Check if there is already an entry today
                     try:
