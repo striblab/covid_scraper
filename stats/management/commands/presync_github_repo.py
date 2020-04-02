@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
-    help = 'Commit and push changes to remote Github repo.'
+    help = "Do a git pull before you start scraping so you don't have to squash commits later."
 
     REPO_LOCAL_PATH = os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data')
 
@@ -18,10 +18,5 @@ class Command(BaseCommand):
 
         ssh_cmd = 'ssh -i /srv/keys/.docker_deploy_rsa'
         with repo.git.custom_environment(GIT_SSH_COMMAND=ssh_cmd):
-            # git.pull()
-            git.add('mn_*.csv')
-
-            if repo.is_dirty():
-                print('Changes found, committing and pushing.')
-                git.commit('-am', 'Updating scraper-generated files {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M')))
-                git.push('origin', 'master')
+            git.stash()
+            git.pull()

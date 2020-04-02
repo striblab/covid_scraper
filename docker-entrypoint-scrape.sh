@@ -8,7 +8,11 @@ COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
 NATIONAL_TIMESERIES_FILENAME=national_cases_deaths_by_county_timeseries
 NATIONAL_LATEST_FILENAME=national_cases_deaths_by_county_latest
 
-python manage.py migrate
+# python manage.py migrate
+
+echo "Presyncing with Github..."
+python manage.py update_github_repo
+
 echo Starting scrape...
 python manage.py update_mn_county_counts
 ret=$?
