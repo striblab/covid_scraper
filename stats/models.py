@@ -12,8 +12,21 @@ class County(models.Model):
         return self.name
 
 
-class CurrentTotal(models.Model):
-    count = models.IntegerField(default=0)
+class StatewideTotalDate(models.Model):
+    cumulative_positive_tests = models.IntegerField(default=0)
+    cumulative_completed_tests = models.IntegerField(default=0)
+    cumulative_completed_mdh = models.IntegerField(default=0)
+    cumulative_completed_private = models.IntegerField(default=0)
+
+    cumulative_hospitalized = models.IntegerField(default=0)
+    currently_hospitalized = models.IntegerField(default=0)
+    currently_in_icu = models.IntegerField(default=0)
+
+    cumulative_statewide_deaths = models.IntegerField(default=0)  # Captured separately from county totals, so they may not match
+    cumulative_statewide_recoveries = models.IntegerField(default=0)
+
+    scrape_date = models.DateField()
+    last_update = models.DateTimeField(auto_now=True)
 
 
 class CountyTestDate(models.Model):
@@ -22,7 +35,7 @@ class CountyTestDate(models.Model):
     daily_count = models.IntegerField()
     cumulative_count = models.IntegerField()
     daily_deaths = models.IntegerField(default=0)  # Deaths on this date
-    cumulative_deaths = models.IntegerField(default=0)  # Deaths on this date
+    cumulative_deaths = models.IntegerField(default=0)  # Deaths by this date
     scrape_date = models.DateField()
     last_update = models.DateTimeField(auto_now=True)
 

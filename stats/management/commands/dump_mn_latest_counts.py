@@ -4,14 +4,13 @@ import csv
 from django.conf import settings
 
 from django.core.management.base import BaseCommand
-from stats.models import County, CountyTestDate, CurrentTotal
-from stats.utils import slack_latest
+from stats.models import County, CountyTestDate, StatewideTotalDate
 
 
 class Command(BaseCommand):
-    help = 'Dump a CSV of the latest cumulative count of county-by-county positive tests.'
+    help = 'Dump a CSV of the latest cumulative count of statewide and county-by-county data.'
 
-    def handle(self, *args, **options):
+    def dump_county_latest(self):
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_positive_tests_by_county.csv'), 'w') as csvfile:
             # fieldnames = ['first_name', 'last_name']
             fieldnames = ['county_fips', 'county_name', 'total_positive_tests', 'total_deaths', 'latitude', 'longitude']
@@ -22,7 +21,6 @@ class Command(BaseCommand):
             msg_output = '*Latest numbers from MPH:*\n\n'
 
             updated_total = 0
-            statewide_daily_new_cases = 0
 
             for c in County.objects.all().order_by('name'):
                 latest_observation = CountyTestDate.objects.filter(county=c).order_by('-scrape_date').first()
@@ -41,29 +39,29 @@ class Command(BaseCommand):
 
                     writer.writerow(row)
 
-                    statewide_daily_new_cases += latest_observation.daily_count
 
-                    # Slack lastest results
-                    change_text = ''
-                    if latest_observation.daily_count != 0:
-                        optional_plus = '+'
-                        if latest_observation.daily_count < 0:
-                            optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE *** '
-                        elif latest_observation.daily_count == latest_observation.cumulative_count:
-                            optional_plus = ':heavy_plus_sign: NEW COUNTY '
+    def dump_state_latest(self):
+        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_latest.csv'), 'w') as csvfile:
+            # fieldnames = ['first_name', 'last_name']
+            fieldnames = ['total_positive_tests', 'total_completed_tests', 'total_completed_mdh', 'total_completed_private', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'total_statewide_deaths', 'total_statewide_recoveries', 'last_update']
 
-                        change_text = ' (:point_right: {}{} today)'.format(optional_plus, latest_observation.daily_count)
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
 
-                    print('{}: {}{}\n'.format(c.name, latest_observation.cumulative_count, change_text))
-                    msg_output = msg_output + '{}: {}{}\n'.format(c.name, latest_observation.cumulative_count, change_text)
+            latest = StatewideTotalDate.objects.all().order_by('-last_update').first()
+            writer.writerow({
+                'total_positive_tests': latest.cumulative_positive_tests,
+                'total_completed_tests': latest.cumulative_completed_tests,
+                'total_completed_mdh': latest.cumulative_completed_mdh,
+                'total_completed_private': latest.cumulative_completed_private,
+                'total_hospitalized': latest.cumulative_hospitalized,
+                'currently_hospitalized': latest.currently_hospitalized,
+                'currently_in_icu': latest.currently_in_icu,
+                'total_statewide_deaths': latest.cumulative_statewide_deaths,
+                'total_statewide_recoveries': latest.cumulative_statewide_recoveries,
+                'last_update': latest.last_update,
+            })
 
-            previous_total = CurrentTotal.objects.all().first()
-            if not previous_total:
-                previous_total = CurrentTotal(count=0)
-            if updated_total != previous_total.count:
-                slack_header = '*{} new county cases announced today statewide.*\n\n'.format(statewide_daily_new_cases)
-                slack_latest(slack_header + msg_output)
-                previous_total.count = updated_total
-                previous_total.save()
-            else:
-                slack_latest('Scraper update: No changes detected.')
+    def handle(self, *args, **options):
+        self.dump_county_latest()
+        self.dump_state_latest()

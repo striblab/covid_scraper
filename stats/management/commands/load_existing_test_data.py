@@ -4,15 +4,13 @@ import csv
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from stats.models import County, CountyTestDate
+from stats.models import County, CountyTestDate, StatewideTotalDate
 
 
 class Command(BaseCommand):
     help = 'One-time import of existing data that was manually compiled'
 
-
-    def handle(self, *args, **options):
-        pass
+    def load_county_case_data(self):
         with open(os.path.join(settings.BASE_DIR, 'data', 'mn-covid-tracker-manual-entry.csv'), 'r') as csvfile:
             reader = csv.DictReader(csvfile)
             records = {}
@@ -51,30 +49,58 @@ class Command(BaseCommand):
                         scrape_date=parsed_date,
                         defaults={'daily_count': daily_count, 'cumulative_count': new_total}
                     )
-                    # obj = CountyTestDate(
-                    #     county=county_obj,
-                    #     scrape_date=parsed_date,
-                    #     daily_count=daily_count,
-                    #     cumulative_count=new_total
-                    # )
-                    # obj.save()
 
-                # else:
-                #     records[row['DATE']]
-        #     fieldnames = ['date', 'total_positive_tests', 'new_positive_tests']
-        #     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        #     writer.writeheader()
-        #
-        #     previous_total = 0
-        #     for date in CountyTestDate.objects.all().order_by('scrape_date').values('scrape_date').distinct():
-        #         # print(date)
-        #         total_as_of_date = CountyTestDate.objects.filter(scrape_date=date['scrape_date']).aggregate(Sum('case_count'))['case_count__sum']
-        #         # print(total_as_of_date)
-        #         new_cases = total_as_of_date - previous_total
-        #         # print(total_as_of_date, new_cases)
-        #         row = {
-        #             'date': date['scrape_date'].strftime('%Y-%m-%d'),
-        #             'total_positive_tests': total_as_of_date,
-        #             'new_positive_tests': new_cases
-        #         }
-        #         writer.writerow(row)
+    def load_statewide_historical_data(self):
+        # hospitalizations
+        with open(os.path.join(settings.BASE_DIR, 'data', 'hospitalizations-manual-entry.csv'), 'r') as csvfile:
+            reader = csv.DictReader(csvfile)
+            records = {}
+            for row in reader:
+                if 'Date' in row.keys():
+                    parsed_date = datetime.strptime(row['Date'], '%m/%d/%Y').date()
+                    # print(row)
+                    defaults = {}
+                    if row['Cumulative total hospitalizations'] != '':
+                        defaults['cumulative_hospitalized'] = int(row['Cumulative total hospitalizations'])
+
+                        if row['Currently hospitalized'] != '':
+                            defaults['currently_hospitalized'] = int(row['Currently hospitalized'])
+
+                        if row['ICU'] != '':
+                            defaults['currently_in_icu'] = int(row['ICU'])
+
+                        if row['Recoveries'] != '':
+                            defaults['cumulative_statewide_recoveries'] = int(row['Recoveries'])
+
+                        if row['Deaths'] != '':
+                            defaults['cumulative_statewide_deaths'] = int(row['Deaths'])
+
+                        obj, created = StatewideTotalDate.objects.update_or_create(
+                            scrape_date=parsed_date,
+                            defaults=defaults
+                        )
+
+        # tests
+        with open(os.path.join(settings.BASE_DIR, 'data', 'tests-statewide-manual-entry.csv'), 'r') as csvfile:
+            reader = csv.DictReader(csvfile)
+            records = {}
+            for row in reader:
+                if 'DATE' in row.keys():
+                    parsed_date = datetime.strptime(row['DATE'], '%m/%d/%Y').date()
+                    # print(row)
+                    defaults = {}
+
+                    if row['TOTAL/CUMULATIVE TESTS'] != '':
+                        defaults['cumulative_completed_tests'] = int(row['TOTAL/CUMULATIVE TESTS'])
+
+                    if row['cumulative positives'] != '':
+                        defaults['cumulative_positive_tests'] = int(row['cumulative positives'])
+
+                    obj, created = StatewideTotalDate.objects.update_or_create(
+                        scrape_date=parsed_date,
+                        defaults=defaults
+                    )
+
+    def handle(self, *args, **options):
+        # self.load_county_case_data()
+        self.load_statewide_historical_data()

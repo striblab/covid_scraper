@@ -1,6 +1,7 @@
 #!/bin/bash
 EXPORTS_ROOT=covid_scraper/exports
 COUNTY_TESTS_FILENAME=mn_positive_tests_by_county
+STATEWIDE_LATEST_FILENAME=mn_statewide_latest
 STATEWIDE_TIMESERIES_FILENAME=mn_statewide_timeseries
 COUNTY_TIMESERIES_FILENAME=mn_county_timeseries
 COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
@@ -18,6 +19,14 @@ fi
 echo Dumping latest county counts...
 python manage.py dump_mn_latest_counts
 
+LATEST_HTML_SCRAPE=($(ls -Art $EXPORTS_ROOT/html/ | tail -n 1))
+echo $LATEST_HTML_SCRAPE
+echo "Pushing copy of MDH html..."
+echo Pushing csvs to S3...
+aws s3 cp $EXPORTS_ROOT/html/$LATEST_HTML_SCRAPE s3://$S3_URL/html/$LATEST_HTML_SCRAPE \
+--content-type=text/html \
+--acl public-read
+
 # Only dump if csvs have many lines or were produced in last few minutes
 LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv))
 
@@ -31,6 +40,14 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --acl public-read
 
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TESTS_FILENAME-$download_datetime.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv s3://$S3_URL/csv/$STATEWIDE_LATEST_FILENAME.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv s3://$S3_URL/csv/$STATEWIDE_LATEST_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 

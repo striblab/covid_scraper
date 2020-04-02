@@ -1,5 +1,6 @@
 import os
 from git import Repo
+from datetime import datetime
 
 from django.conf import settings
 
@@ -22,5 +23,5 @@ class Command(BaseCommand):
 
             if repo.is_dirty():
                 print('Changes found, committing and pushing.')
-                git.commit('-am', 'Updating scraper-generated files...')
+                git.commit('-am', 'Updating scraper-generated files {} ...'.format(datetime.now().strftime('%Y-%m-%d %H:%M')))
                 git.push('--force', 'origin', 'master')
