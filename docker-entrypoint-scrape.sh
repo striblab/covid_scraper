@@ -9,9 +9,8 @@ NATIONAL_TIMESERIES_FILENAME=national_cases_deaths_by_county_timeseries
 NATIONAL_LATEST_FILENAME=national_cases_deaths_by_county_latest
 
 # python manage.py migrate
-
 echo "Presyncing with Github..."
-python manage.py update_github_repo
+python manage.py presync_github_repo
 
 echo Starting scrape...
 python manage.py update_mn_county_counts

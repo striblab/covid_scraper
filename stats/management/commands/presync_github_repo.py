@@ -18,5 +18,4 @@ class Command(BaseCommand):
 
         ssh_cmd = 'ssh -i /srv/keys/.docker_deploy_rsa'
         with repo.git.custom_environment(GIT_SSH_COMMAND=ssh_cmd):
-            git.stash()
-            git.pull()
+            git.pull('origin', 'master', '--rebase')
