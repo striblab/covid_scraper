@@ -158,7 +158,7 @@ class Command(BaseCommand):
             if cumulative_completed_private_match:
                 output['cumulative_completed_private'] = cumulative_completed_private_match
 
-            cumulative_statewide_deaths_match = self.ul_regex('Deaths', ul.text)
+            cumulative_statewide_deaths_match = self.ul_regex('Total deaths', ul.text)
             if cumulative_statewide_deaths_match:
                 output['cumulative_statewide_deaths'] = cumulative_statewide_deaths_match
 
