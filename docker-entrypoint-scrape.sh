@@ -131,6 +131,23 @@ else
 fi
 printf "\n"
 
+# Dashboard
+# python manage.py update_dashboard_data
+# 
+# LATEST_HOSP_SCRAPE=($(ls -Art $EXPORTS_ROOT/dashboard/hospital_capacity_* | tail -n 1))
+# echo $LATEST_HOSP_SCRAPE
+# echo "Pushing copy of hospital capacity csv..."
+# aws s3 cp $EXPORTS_ROOT/dashboard/$LATEST_HOSP_SCRAPE s3://$S3_URL/dashboard/$LATEST_HOSP_SCRAPE \
+# --content-type=text/csv \
+# --acl public-read
+# 
+# LATEST_SUPPLIES_SCRAPE=($(ls -Art $EXPORTS_ROOT/dashboard/supplies_* | tail -n 1))
+# echo $LATEST_SUPPLIES_SCRAPE
+# echo "Pushing copy of critical supplies csv..."
+# aws s3 cp $EXPORTS_ROOT/dashboard/$LATEST_SUPPLIES_SCRAPE s3://$S3_URL/dashboard/$LATEST_SUPPLIES_SCRAPE \
+# --content-type=text/csv \
+# --acl public-read
+
 if (("${LINE_COUNT[0]}" > 2)); then
   echo "Updating Github..."
   python manage.py update_github_repo
