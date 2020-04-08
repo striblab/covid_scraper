@@ -8,7 +8,6 @@ COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
 NATIONAL_TIMESERIES_FILENAME=national_cases_deaths_by_county_timeseries
 NATIONAL_LATEST_FILENAME=national_cases_deaths_by_county_latest
 
-# python manage.py migrate
 echo "Presyncing with Github..."
 python manage.py presync_github_repo
 
@@ -132,21 +131,23 @@ fi
 printf "\n"
 
 # Dashboard
-# python manage.py update_dashboard_data
-# 
-# LATEST_HOSP_SCRAPE=($(ls -Art $EXPORTS_ROOT/dashboard/hospital_capacity_* | tail -n 1))
-# echo $LATEST_HOSP_SCRAPE
-# echo "Pushing copy of hospital capacity csv..."
-# aws s3 cp $EXPORTS_ROOT/dashboard/$LATEST_HOSP_SCRAPE s3://$S3_URL/dashboard/$LATEST_HOSP_SCRAPE \
-# --content-type=text/csv \
-# --acl public-read
-# 
+python manage.py update_dashboard_data
+
+#LATEST_HOSP_SCRAPE=($(ls -Art $EXPORTS_ROOT/dashboard/hospital_capacity_* | tail -n 1))
+LATEST_HOSP_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name 'hospital_capacity_*' | sort | tail -n 1))
+echo $LATEST_HOSP_SCRAPE
+echo "Pushing copy of hospital capacity csv..."
+aws s3 cp $LATEST_HOSP_SCRAPE s3://$S3_URL/dashboard/${LATEST_HOSP_SCRAPE##*/} \
+--content-type=text/csv \
+--acl public-read
+
 # LATEST_SUPPLIES_SCRAPE=($(ls -Art $EXPORTS_ROOT/dashboard/supplies_* | tail -n 1))
-# echo $LATEST_SUPPLIES_SCRAPE
-# echo "Pushing copy of critical supplies csv..."
-# aws s3 cp $EXPORTS_ROOT/dashboard/$LATEST_SUPPLIES_SCRAPE s3://$S3_URL/dashboard/$LATEST_SUPPLIES_SCRAPE \
-# --content-type=text/csv \
-# --acl public-read
+LATEST_SUPPLIES_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name 'supplies_*' | sort | tail -n 1))
+echo $LATEST_SUPPLIES_SCRAPE
+echo "Pushing copy of critical supplies csv..."
+aws s3 cp $LATEST_SUPPLIES_SCRAPE s3://$S3_URL/dashboard/${LATEST_SUPPLIES_SCRAPE##*/} \
+--content-type=text/csv \
+--acl public-read
 
 if (("${LINE_COUNT[0]}" > 2)); then
   echo "Updating Github..."

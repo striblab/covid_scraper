@@ -35,7 +35,8 @@ class Command(BaseCommand):
         county_data = []
 
         # Right now this is the only table on the page
-        table = soup.find_all('table')[3]
+        # table = soup.find_all('table')[3]
+        table = soup.find("th", text="County").find_parent("table")
 
         for row in table.find_all('tr'):
             tds = row.find_all('td')
