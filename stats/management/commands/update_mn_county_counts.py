@@ -50,10 +50,7 @@ class Command(BaseCommand):
 
     def update_county_records(self, county_data):
         msg_output = ''
-        # deaths_obj = self.get_death_csv()
-        # if not deaths_obj:
-        #     print('WARNING: Cannot retrieve deaths data. Not proceeding.')
-        # else:
+
         today = datetime.date.today()
         for observation in county_data:
             previous_county_observation = CountyTestDate.objects.filter(county__name__iexact=observation[0].strip(), scrape_date__lt=today).order_by('-scrape_date').first()
@@ -66,14 +63,6 @@ class Command(BaseCommand):
 
             daily_cases = int(observation[1]) - previous_county_cases_total
             daily_deaths = int(observation[2]) - previous_county_deaths_total
-
-            # Get death count for this county/date
-            # daily_deaths = self.find_matching_deaths(deaths_obj, today, observation[0].strip())
-            # print('daily deaths: {}'.format(daily_deaths))
-            # cumulative_deaths = CountyTestDate.objects.filter(county__name__iexact=observation[0].strip()).aggregate(Sum('daily_deaths'))['daily_deaths__sum']
-            # if not cumulative_deaths:
-            #     cumulative_deaths = daily_deaths
-            # print('cumulative deaths: {}'.format(cumulative_deaths))
 
             # Check if there is already an entry today
             try:
@@ -111,7 +100,7 @@ class Command(BaseCommand):
             #     county_observation.save()
 
             # Slack lastest results
-            change_text = ''
+            case_change_text = ''
             if county_observation.daily_count != 0:
                 optional_plus = '+'
                 if county_observation.daily_count < 0:
@@ -119,10 +108,30 @@ class Command(BaseCommand):
                 elif county_observation.daily_count == county_observation.cumulative_count:
                     optional_plus = ':heavy_plus_sign: NEW COUNTY '
 
-                change_text = ' (:point_right: {}{} today)'.format(optional_plus, county_observation.daily_count)
+                case_change_text = ' (:point_right: {}{} today)'.format(optional_plus, county_observation.daily_count)
 
-            print('{}: {}{}\n'.format(county_observation.county.name, county_observation.cumulative_count, change_text))
-            msg_output = msg_output + '{}: {}{}\n'.format(county_observation.county.name, county_observation.cumulative_count, change_text)
+            deaths_change_text = ''
+            if int(county_observation.cumulative_deaths) > 0:
+                deaths_change_text = ', {} death'.format(county_observation.cumulative_deaths)
+                if int(county_observation.cumulative_deaths) > 1:
+                    deaths_change_text += 's' # pluralize
+
+                if county_observation.daily_deaths != 0:
+                    optional_plus = '+'
+                    if county_observation.daily_deaths < 0:
+                        optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE *** '
+                    elif county_observation.daily_deaths == county_observation.cumulative_deaths:
+                        optional_plus = ':heavy_plus_sign: NEW COUNTY '
+
+                    deaths_change_text += ' (:point_right: {}{} today)'.format(optional_plus, county_observation.daily_deaths)
+
+            # print('{}: {}{}\n'.format(county_observation.county.name, county_observation.cumulative_count, case_change_text))
+            msg_output = msg_output + '{}: {} cases{}{}\n'.format(
+                county_observation.county.name,
+                county_observation.cumulative_count,
+                case_change_text,
+                deaths_change_text
+            )
 
         return 'COVID scraper county-by-county results: \n\n' + msg_output
 
@@ -258,7 +267,7 @@ class Command(BaseCommand):
 
             return 'COVID scraper found updated data on the <https://www.health.state.mn.us/diseases/coronavirus/situation.html|MDH situation page>...\n\n' + msg_output + '\n'
 
-        return 'COVID scraper: No updates found in statewide numbers.'
+        return 'COVID scraper: No updates found in statewide numbers.\n\n'
 
 
     def handle(self, *args, **options):
@@ -287,5 +296,6 @@ class Command(BaseCommand):
                 slack_latest(statewide_msg_output + county_msg_output, '#virus')
                 slack_latest(statewide_msg_output + county_msg_output, '#covid-tracking')
             else:
+                # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')
                 # slack_latest('Scraper update: No county changes detected.', '#covid-tracking')
                 slack_latest('COVID scraper update: No changes detected.', '#robot-dojo')

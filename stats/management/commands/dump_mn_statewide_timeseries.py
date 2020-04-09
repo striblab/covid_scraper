@@ -1,5 +1,6 @@
 import os
 import csv
+import datetime
 
 from django.conf import settings
 from django.db.models import Sum
@@ -30,42 +31,21 @@ class Command(BaseCommand):
                 new_tests = record.cumulative_completed_tests - previous_total_tests
                 previous_total_tests = record.cumulative_completed_tests
 
-                row = {
-                    'date': record.scrape_date.strftime('%Y-%m-%d'),
-                    'total_positive_tests': record.cumulative_positive_tests,
-                    'new_positive_tests': new_cases,
-                    'total_hospitalized': record.cumulative_hospitalized,
-                    'currently_hospitalized': record.currently_hospitalized,
-                    'currently_in_icu': record.currently_in_icu,
-                    'total_statewide_deaths': record.cumulative_statewide_deaths,
-                    'new_statewide_deaths': new_deaths,
-                    'total_statewide_recoveries': record.cumulative_statewide_recoveries,
-                    'total_completed_tests': record.cumulative_completed_tests,
-                    'new_completed_tests': new_tests,
-                }
-                writer.writerow(row)
+                if record.scrape_date == datetime.date.today() and new_cases == 0:
+                    pass  # Ignore if there's no new results for today
+                else:
 
-        # with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_timeseries.csv'), 'w') as csvfile:
-        #     fieldnames = ['date', 'total_positive_tests', 'new_positive_tests']
-        #     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        #     writer.writeheader()
-        #
-        #     previous_total = 0
-        #     for date in CountyTestDate.objects.all().order_by('scrape_date').values('scrape_date').distinct():
-        #         # Get the totals for each county as of that date. The latest observation may be an earlier date.
-        #         county_totals = 0
-        #         for c in County.objects.all():
-        #             latest_county_observation = CountyTestDate.objects.filter(county=c, scrape_date__lte=date['scrape_date']).order_by('-scrape_date').first()
-        #             if latest_county_observation:
-        #                 county_totals += latest_county_observation.cumulative_count
-        #
-        #         new_cases = county_totals - previous_total
-        #         previous_total = county_totals
-        #
-        #
-        #         row = {
-        #             'date': date['scrape_date'].strftime('%Y-%m-%d'),
-        #             'total_positive_tests': county_totals,
-        #             'new_positive_tests': new_cases
-        #         }
-        #         writer.writerow(row)
+                    row = {
+                        'date': record.scrape_date.strftime('%Y-%m-%d'),
+                        'total_positive_tests': record.cumulative_positive_tests,
+                        'new_positive_tests': new_cases,
+                        'total_hospitalized': record.cumulative_hospitalized,
+                        'currently_hospitalized': record.currently_hospitalized,
+                        'currently_in_icu': record.currently_in_icu,
+                        'total_statewide_deaths': record.cumulative_statewide_deaths,
+                        'new_statewide_deaths': new_deaths,
+                        'total_statewide_recoveries': record.cumulative_statewide_recoveries,
+                        'total_completed_tests': record.cumulative_completed_tests,
+                        'new_completed_tests': new_tests,
+                    }
+                    writer.writerow(row)

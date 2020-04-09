@@ -38,6 +38,7 @@ COPY $DOCKYARD_SRC $DOCKYARD_SRVPROJ
 RUN pip install pipenv
 RUN pipenv lock --requirements > $DOCKYARD_SRVPROJ/requirements.txt
 RUN pip install -r $DOCKYARD_SRVPROJ/requirements.txt
+RUN pip install ndg-httpsclient
 RUN pip install awscli
 
 # Set up for github execution

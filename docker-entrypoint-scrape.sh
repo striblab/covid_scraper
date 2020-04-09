@@ -133,16 +133,14 @@ printf "\n"
 # Dashboard
 python manage.py update_dashboard_data
 
-#LATEST_HOSP_SCRAPE=($(ls -Art $EXPORTS_ROOT/dashboard/hospital_capacity_* | tail -n 1))
-LATEST_HOSP_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name 'hospital_capacity_*' | sort | tail -n 1))
-echo $LATEST_HOSP_SCRAPE
-echo "Pushing copy of hospital capacity csv..."
-aws s3 cp $LATEST_HOSP_SCRAPE s3://$S3_URL/dashboard/${LATEST_HOSP_SCRAPE##*/} \
---content-type=text/csv \
---acl public-read
+# LATEST_HOSP_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name 'hospital_capacity_*' | sort | tail -n 1))
+# echo $LATEST_HOSP_SCRAPE
+# echo "Pushing copy of hospital capacity csv..."
+# aws s3 cp $LATEST_HOSP_SCRAPE s3://$S3_URL/dashboard/${LATEST_HOSP_SCRAPE##*/} \
+# --content-type=text/csv \
+# --acl public-read
 
-# LATEST_SUPPLIES_SCRAPE=($(ls -Art $EXPORTS_ROOT/dashboard/supplies_* | tail -n 1))
-LATEST_SUPPLIES_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name 'supplies_*' | sort | tail -n 1))
+LATEST_SUPPLIES_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name 'dashboard_*' | sort | tail -n 1))
 echo $LATEST_SUPPLIES_SCRAPE
 echo "Pushing copy of critical supplies csv..."
 aws s3 cp $LATEST_SUPPLIES_SCRAPE s3://$S3_URL/dashboard/${LATEST_SUPPLIES_SCRAPE##*/} \

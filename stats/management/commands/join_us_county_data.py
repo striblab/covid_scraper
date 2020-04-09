@@ -15,6 +15,7 @@ class Command(BaseCommand):
     NYT_COUNTY_TIMESERIES_LOCAL = os.path.join(settings.BASE_DIR, 'data', 'nyt-us-counties.csv')
     COUNTY_CENTROIDS_PATH = os.path.join(settings.BASE_DIR, 'data', 'us_county_centroids_tl_2019_4326.csv')
 
+    STATE_TIMESERIES_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'state_cases_from_100_timeseries.csv')
     TIMESERIES_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_timeseries.csv')
     LATEST_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_latest.csv')
 
@@ -88,6 +89,20 @@ class Command(BaseCommand):
                 'longitude_coalesced',
             ]]
             df_subset.rename(columns={'latitude_coalesced': 'latitude', 'longitude_coalesced': 'longitude'}, inplace=True)
+
+            print('Making state timeseries...')
+
+            df_bystate = df_subset[[
+                'date',
+                'state',
+                'cases',
+                'deaths',
+            ]].groupby(['state', 'date']).agg('sum').reset_index()
+
+            df_bystate_100_plus = df_bystate[df_bystate['cases'] >= 100].sort_values(['state', 'date'])
+            df_bystate_100_plus['day_counter'] = df_bystate_100_plus.groupby(['state']).cumcount()
+            print(df_bystate_100_plus)
+            df_bystate_100_plus.to_csv(self.STATE_TIMESERIES_EXPORT_PATH, index=False)
 
             print('Exporting national timeseries...')
             df_subset.to_csv(self.TIMESERIES_EXPORT_PATH, index=False)
