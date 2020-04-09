@@ -119,7 +119,7 @@ class Command(BaseCommand):
                 if county_observation.daily_deaths != 0:
                     optional_plus = '+'
                     if county_observation.daily_deaths < 0:
-                        optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE *** '
+                        optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE '
                     elif county_observation.daily_deaths == county_observation.cumulative_deaths:
                         optional_plus = ':heavy_plus_sign: NEW COUNTY '
 
