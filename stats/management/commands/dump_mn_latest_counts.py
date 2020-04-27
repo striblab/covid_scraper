@@ -43,7 +43,24 @@ class Command(BaseCommand):
     def dump_state_latest(self):
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_latest.csv'), 'w') as csvfile:
             # fieldnames = ['first_name', 'last_name']
-            fieldnames = ['total_positive_tests', 'total_completed_tests', 'total_completed_mdh', 'total_completed_private', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'total_statewide_deaths', 'total_statewide_recoveries', 'last_update']
+            fieldnames = [
+                'total_positive_tests',
+                'total_completed_tests',
+                'total_completed_mdh',
+                'total_completed_private',
+                'total_hospitalized',
+                'currently_hospitalized',
+                'currently_in_icu',
+                'total_statewide_deaths',
+                'total_statewide_recoveries',
+                'cases_age_0_5',
+                'cases_age_6_19',
+                'cases_age_20_44',
+                'cases_age_45_64',
+                'cases_age_65_plus',
+                'cases_age_unknown',
+                'last_update',
+            ]
 
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
@@ -59,7 +76,13 @@ class Command(BaseCommand):
                 'currently_in_icu': latest.currently_in_icu,
                 'total_statewide_deaths': latest.cumulative_statewide_deaths,
                 'total_statewide_recoveries': latest.cumulative_statewide_recoveries,
-                'last_update': latest.last_update,
+                'cases_age_0_5': latest.cases_age_0_5,
+                'cases_age_6_19': latest.cases_age_6_19,
+                'cases_age_20_44': latest.cases_age_20_44,
+                'cases_age_45_64': latest.cases_age_45_64,
+                'cases_age_65_plus': latest.cases_age_65_plus,
+                'cases_age_unknown': latest.cases_age_unknown,
+                'last_update': latest.last_update
             })
 
     def handle(self, *args, **options):

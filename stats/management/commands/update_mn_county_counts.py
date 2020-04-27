@@ -52,6 +52,9 @@ class Command(BaseCommand):
         msg_output = ''
 
         today = datetime.date.today()
+        num_counties_with_cases = len(county_data)
+        msg_output += '{} counties with at least 1 confirmed case\n\n'.format(num_counties_with_cases)
+
         for observation in county_data:
             previous_county_observation = CountyTestDate.objects.filter(county__name__iexact=observation[0].strip(), scrape_date__lt=today).order_by('-scrape_date').first()
             if previous_county_observation:
@@ -61,8 +64,8 @@ class Command(BaseCommand):
                 previous_county_cases_total = 0
                 previous_county_deaths_total = 0
 
-            daily_cases = int(observation[1]) - previous_county_cases_total
-            daily_deaths = int(observation[2]) - previous_county_deaths_total
+            daily_cases = self.parse_comma_int(observation[1]) - previous_county_cases_total
+            daily_deaths = self.parse_comma_int(observation[2]) - previous_county_deaths_total
 
             # Check if there is already an entry today
             try:
@@ -72,21 +75,21 @@ class Command(BaseCommand):
                 )
                 print('Updating {} County: {}'.format(observation[0], observation[1]))
                 county_observation.daily_count = daily_cases
-                county_observation.cumulative_count = observation[1]
+                county_observation.cumulative_count = self.parse_comma_int(observation[1])
                 county_observation.daily_deaths = daily_deaths
-                county_observation.cumulative_deaths = observation[2]
+                county_observation.cumulative_deaths = self.parse_comma_int(observation[2])
                 # county_observation.cumulative_deaths = cumulative_deaths
                 county_observation.save()
             except ObjectDoesNotExist:
                 try:
-                    print('Creating 1st {} County record of day: {}'.format(observation[0], observation[1]))
+                    print('Creating 1st {} County record of day: {}'.format(observation[0], self.parse_comma_int(observation[1])))
                     county_observation = CountyTestDate(
                         county=County.objects.get(name__iexact=observation[0].strip()),
                         scrape_date=today,
                         daily_count=daily_cases,
-                        cumulative_count=observation[1],
+                        cumulative_count=self.parse_comma_int(observation[1]),
                         daily_deaths=daily_deaths,
-                        cumulative_deaths=observation[2],
+                        cumulative_deaths=self.parse_comma_int(observation[2]),
                     )
                     county_observation.save()
                 except Exception as e:
@@ -153,22 +156,85 @@ class Command(BaseCommand):
             return int(match.group(1).replace(',', ''))
         return False
 
+    def detail_tables_regex(self, soup, th_text):
+        table = soup.find("th", text=th_text).find_parent("table")
+        rows = table.find_all("tr")
+        num_rows = len(rows)
+        for k, row in enumerate(rows):
+            if k == 0:
+                first_row = row.find_all("th")
+            if k == num_rows - 1:
+                last_row = row.find_all(['th', 'td'])
+
+        col_names = [th.text for th in first_row]
+        last_row_values = {}
+        for k, c in enumerate(col_names):
+            last_row_values[c] = last_row[k].text
+        return last_row_values
+
+    def ages_table_parser(self, soup):
+        ''' should work on multiple columns '''
+        table = soup.find("th", text='Age Group').find_parent("table")
+        rows = table.find_all("tr")
+        num_rows = len(rows)
+        data_rows = []
+        for k, row in enumerate(rows):
+            if k == 0:
+                first_row = row.find_all("th")
+                col_names = [th.text for th in first_row]
+            else:
+                data_row = {}
+                cells = row.find_all(["th", "td"])
+                for k, c in enumerate(col_names):
+                    data_row[c] = cells[k].text
+                data_rows.append(data_row)
+
+        return data_rows
+
+
+    def p_regex(self, preceding_text, input_str):
+        match = re.search(r'{}: ([\d,]+)'.format(preceding_text), input_str)
+        if match:
+            return int(match.group(1).replace(',', ''))
+        return False
+
+    def parse_comma_int(self, input_str):
+        return int(input_str.replace(',', ''))
+
     def get_statewide_data(self, html):
         soup = BeautifulSoup(html, 'html.parser')
-        uls = soup.find_all('ul')
 
         output = {}
-        for ul in uls:
-            # print(ul.text)
-            cumulative_positive_tests_match = self.ul_regex('Total positive', ul.text)
+
+        hosp_table_latest = self.detail_tables_regex(soup, 'Hospitalized in ICU (daily)')
+        output['cumulative_hospitalized'] = self.parse_comma_int(hosp_table_latest['Total hospitalizations'])
+        output['currently_in_icu'] = self.parse_comma_int(hosp_table_latest['Hospitalized in ICU (daily)'])
+        output['currently_non_icu_hospitalized'] = self.parse_comma_int(hosp_table_latest['Hospitalized, not in ICU (daily)'])  # Not used except to add up
+        output['currently_hospitalized'] = output['currently_in_icu'] + output['currently_non_icu_hospitalized']
+
+        deaths_table_latest = self.detail_tables_regex(soup, 'Total deaths')
+        output['cumulative_statewide_deaths'] = self.parse_comma_int(deaths_table_latest['Total deaths'])
+
+        recoveries_table_latest = self.detail_tables_regex(soup, 'No longer needing isolation')
+        output['cumulative_statewide_recoveries'] = self.parse_comma_int(recoveries_table_latest['No longer needing isolation'])
+
+        # ages
+        # ages_data = self.ages_table_parser(soup)
+        # output['cases_age_0_5'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '0-5 years'][0]
+        # output['cases_age_6_19'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '6-19 years'][0]
+        # output['cases_age_20_44'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '20-44 years'][0]
+        # output['cases_age_45_64'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '45-64 years'][0]
+        # output['cases_age_65_plus'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '65+ years'][0]
+        # output['cases_age_unknown'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == 'Unknown/ missing'][0]
+
+        ps = soup.find_all('p')
+        for p in ps:
+            cumulative_positive_tests_match = self.p_regex('Total positive', p.text)
             if cumulative_positive_tests_match:
                 output['cumulative_positive_tests'] = cumulative_positive_tests_match
 
-            # Not in a ul
-            # cumulative_completed_tests_match = self.ul_regex('Total approximate number of completed tests', ul.text)
-            # if cumulative_completed_tests_match:
-            #     output['cumulative_completed_tests'] = cumulative_completed_tests_match
-
+        uls = soup.find_all('ul')
+        for ul in uls:
             cumulative_completed_mdh_match = self.ul_regex('Total approximate number of completed tests from the MDH Public Health Lab', ul.text)
             if cumulative_completed_mdh_match:
                 output['cumulative_completed_mdh'] = cumulative_completed_mdh_match
@@ -176,26 +242,6 @@ class Command(BaseCommand):
             cumulative_completed_private_match = self.ul_regex('Total approximate number of completed tests from external laboratories', ul.text)
             if cumulative_completed_private_match:
                 output['cumulative_completed_private'] = cumulative_completed_private_match
-
-            cumulative_statewide_deaths_match = self.ul_regex('Total deaths', ul.text)
-            if cumulative_statewide_deaths_match:
-                output['cumulative_statewide_deaths'] = cumulative_statewide_deaths_match
-
-            cumulative_statewide_recoveries_match = self.ul_regex('Patients who no longer need to be isolated', ul.text)
-            if cumulative_statewide_recoveries_match:
-                output['cumulative_statewide_recoveries'] = cumulative_statewide_recoveries_match
-
-            cumulative_hospitalized_match = self.ul_regex('Total cases requiring hospitalization', ul.text)
-            if cumulative_hospitalized_match:
-                output['cumulative_hospitalized'] = cumulative_hospitalized_match
-
-            currently_hospitalized_match = self.ul_regex('Hospitalized as of today', ul.text)
-            if currently_hospitalized_match:
-                output['currently_hospitalized'] = currently_hospitalized_match
-
-            currently_in_icu_match = self.ul_regex('Hospitalized in ICU as of today', ul.text)
-            if currently_in_icu_match:
-                output['currently_in_icu'] = currently_in_icu_match
 
         # print(cumulative_hospitalized, currently_hospitalized, currently_in_icu)
         return output
@@ -228,6 +274,12 @@ class Command(BaseCommand):
             current_statewide_observation.currently_in_icu = statewide_data['currently_in_icu']
             current_statewide_observation.cumulative_statewide_deaths = statewide_data['cumulative_statewide_deaths']
             current_statewide_observation.cumulative_statewide_recoveries = statewide_data['cumulative_statewide_recoveries']
+            # current_statewide_observation.cases_age_0_5 = statewide_data['cases_age_0_5']
+            # current_statewide_observation.cases_age_6_19 = statewide_data['cases_age_6_19']
+            # current_statewide_observation.cases_age_20_44 = statewide_data['cases_age_20_44']
+            # current_statewide_observation.cases_age_45_64 = statewide_data['cases_age_45_64']
+            # current_statewide_observation.cases_age_65_plus = statewide_data['cases_age_65_plus']
+            # current_statewide_observation.cases_age_unknown = statewide_data['cases_age_unknown']
 
             current_statewide_observation.save()
         except ObjectDoesNotExist:
@@ -243,6 +295,14 @@ class Command(BaseCommand):
                     currently_in_icu=statewide_data['currently_in_icu'],
                     cumulative_statewide_deaths=statewide_data['cumulative_statewide_deaths'],
                     cumulative_statewide_recoveries=statewide_data['cumulative_statewide_recoveries'],
+
+                    # cases_age_0_5 = statewide_data['cases_age_0_5'],
+                    # cases_age_6_19 = statewide_data['cases_age_6_19'],
+                    # cases_age_20_44 = statewide_data['cases_age_20_44'],
+                    # cases_age_45_64 = statewide_data['cases_age_45_64'],
+                    # cases_age_65_plus = statewide_data['cases_age_65_plus'],
+                    # cases_age_unknown = statewide_data['cases_age_unknown'],
+
                     scrape_date=today,
                 )
                 current_statewide_observation.save()
@@ -288,6 +348,7 @@ class Command(BaseCommand):
 
             county_data = self.get_county_data(html)
             county_msg_output = self.update_county_records(county_data)
+            # county_msg_output = "Leaving county counts at yesterday's total until state clarifies"
 
             print(statewide_data['cumulative_positive_tests'], previous_statewide_cases)
             if statewide_data['cumulative_positive_tests'] != previous_statewide_cases:
@@ -298,4 +359,5 @@ class Command(BaseCommand):
             else:
                 # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')
                 # slack_latest('Scraper update: No county changes detected.', '#covid-tracking')
+                # slack_latest(statewide_msg_output + county_msg_output, '#virus')  # Force output anyway
                 slack_latest('COVID scraper update: No changes detected.', '#robot-dojo')

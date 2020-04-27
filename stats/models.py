@@ -25,6 +25,13 @@ class StatewideTotalDate(models.Model):
     cumulative_statewide_deaths = models.IntegerField(default=0)  # Captured separately from county totals, so they may not match
     cumulative_statewide_recoveries = models.IntegerField(default=0)
 
+    cases_age_0_5 = models.IntegerField(default=None, null=True)
+    cases_age_6_19 = models.IntegerField(default=None, null=True)
+    cases_age_20_44 = models.IntegerField(default=None, null=True)
+    cases_age_45_64 = models.IntegerField(default=None, null=True)
+    cases_age_65_plus = models.IntegerField(default=None, null=True)
+    cases_age_unknown = models.IntegerField(default=None, null=True)
+
     scrape_date = models.DateField()
     last_update = models.DateTimeField(auto_now=True)
 
