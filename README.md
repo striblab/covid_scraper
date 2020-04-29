@@ -1,5 +1,11 @@
 # covid_scraper
 
+## Monitoring the scraper day to day
+The daily scrape is run by the `docker-entrypoint-scrape.sh` shell script, so you can see what order things happen in from there.
+
+The most common cause of the scrape failing is by the [MDH page](https://www.health.state.mn.us/diseases/coronavirus/situation.html) changing something. That logic is all handled in `update_mn_county_counts.py`
+
+
 ## To load county fixture data (lat/lng, fips, popluation)
 `
 python manage.py loaddata covid_scraper/fixtures/County.json

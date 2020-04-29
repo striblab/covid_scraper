@@ -13,7 +13,7 @@ class Command(BaseCommand):
     help = 'Check for new or updated results from the Minnesota "dashboard": https://mn.gov/covid19/data/response.jsp'
 
     def get_csv(self):
-        r = requests.get('https://mn.gov/covid19/assets/StateofMNResponseDashboardCSV_tcm1148-427143.csv')
+        r = requests.get('http://mn.gov/covid19/assets/StateofMNResponseDashboardCSV_tcm1148-427143.csv')
         if r.status_code == requests.codes.ok:
 
             # Save a copy of CSV

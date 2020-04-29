@@ -35,6 +35,7 @@ VOLUME ["$DOCKYARD_SRVHOME/media/", "$DOCKYARD_SRVHOME/logs/"]
 COPY $DOCKYARD_SRC $DOCKYARD_SRVPROJ
 
 # Install Python dependencies
+RUN pip install --ignore-installed pyOpenSSL --upgrade
 RUN pip install pipenv
 RUN pipenv lock --requirements > $DOCKYARD_SRVPROJ/requirements.txt
 RUN pip install -r $DOCKYARD_SRVPROJ/requirements.txt
