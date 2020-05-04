@@ -3,6 +3,7 @@ import csv
 import requests
 import pandas as pd
 import numpy as np
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -19,6 +20,7 @@ class Command(BaseCommand):
     STATE_TIMESERIES_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'state_cases_from_100_timeseries.csv')
     TIMESERIES_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_timeseries.csv')
     LATEST_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_latest.csv')
+    MIDWEST_EMERGING_COUNTIES_PATH = os.path.join(settings.BASE_DIR, 'exports', 'midwest_emerging_counties.csv')
 
     EXTRANEOUS_GEOGRAPHIES = [
         {
@@ -51,9 +53,41 @@ class Command(BaseCommand):
 
     def build_emerging_counties(self, df):
         '''Output last 2 weeks of data for counties with the highest average percent change in cases over the last week'''
-        counties = df['fips'].unique()
+
+        target_states_df = df[df['state'].isin(['Minnesota', 'Wisconsin', 'Iowa', 'North Dakota', 'South Dakota', 'Nebraska', 'Illinois'])]
+
+        counties = target_states_df['fips'].unique()
+        out_df = pd.DataFrame()
         print(counties)
-        # df['daily_pct_change'] =
+
+        df['date'] = pd.to_datetime(df['date'])
+
+        for c in counties:
+            county_timeseries = df[df['fips'] == c].sort_values('date')
+
+            total_cases = county_timeseries['cases'].max()
+            if total_cases > 20:
+
+                county_timeseries['cases_daily_pct_change'] = county_timeseries['cases'].pct_change()
+                county_timeseries['deaths_daily_pct_change'] = county_timeseries['deaths'].pct_change()
+
+                county_max_date = county_timeseries['date'].max()
+                county_last_7 = county_timeseries[county_timeseries['date'] > county_max_date - timedelta(days=7)]
+
+                # print(county_last_7['cases_daily_pct_change'])
+                county_cases_weekly_pct_change = county_last_7[county_last_7['cases_daily_pct_change'] != np.inf]['cases_daily_pct_change'].mean()
+                county_deaths_weekly_pct_change = county_last_7[county_last_7['deaths_daily_pct_change'] != np.inf]['deaths_daily_pct_change'].mean()
+
+                county_timeseries['cases_weekly_pct_change'] = county_cases_weekly_pct_change
+                county_timeseries['deaths_weekly_pct_change'] = county_deaths_weekly_pct_change
+
+                out_df = out_df.append(county_timeseries)
+
+        out_df = out_df.sort_values('cases_weekly_pct_change', ascending=False)
+
+        worst_100_cutoff = out_df['cases_weekly_pct_change'].unique()[:100]
+        worst_100_df = out_df[out_df['cases_weekly_pct_change'] >= min(worst_100_cutoff)]
+        worst_100_df.to_csv(self.MIDWEST_EMERGING_COUNTIES_PATH, index=False)
 
     def handle(self, *args, **options):
 
