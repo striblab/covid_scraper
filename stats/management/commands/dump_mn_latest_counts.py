@@ -3,8 +3,9 @@ import csv
 
 from django.conf import settings
 
+from django.db.models import Max
 from django.core.management.base import BaseCommand
-from stats.models import County, CountyTestDate, StatewideTotalDate
+from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate
 
 
 class Command(BaseCommand):
@@ -12,9 +13,8 @@ class Command(BaseCommand):
 
     def dump_county_latest(self):
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_positive_tests_by_county.csv'), 'w') as csvfile:
-            # fieldnames = ['first_name', 'last_name']
+
             fieldnames = ['county_fips', 'county_name', 'total_positive_tests', 'total_deaths', 'latitude', 'longitude']
-            # COUNTY ID	COUNTY	COUNTA of COUNTY ID	COUNTUNIQUE of COMMUNITY TRANSMISSION	COUNTA of FATALITIES	MAX of LAT	MAX of LONG
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
 
@@ -39,10 +39,8 @@ class Command(BaseCommand):
 
                     writer.writerow(row)
 
-
     def dump_state_latest(self):
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_latest.csv'), 'w') as csvfile:
-            # fieldnames = ['first_name', 'last_name']
             fieldnames = [
                 'total_positive_tests',
                 'total_completed_tests',
@@ -53,12 +51,6 @@ class Command(BaseCommand):
                 'currently_in_icu',
                 'total_statewide_deaths',
                 'total_statewide_recoveries',
-                'cases_age_0_5',
-                'cases_age_6_19',
-                'cases_age_20_44',
-                'cases_age_45_64',
-                'cases_age_65_plus',
-                'cases_age_unknown',
                 'last_update',
             ]
 
@@ -76,15 +68,32 @@ class Command(BaseCommand):
                 'currently_in_icu': latest.currently_in_icu,
                 'total_statewide_deaths': latest.cumulative_statewide_deaths,
                 'total_statewide_recoveries': latest.cumulative_statewide_recoveries,
-                'cases_age_0_5': latest.cases_age_0_5,
-                'cases_age_6_19': latest.cases_age_6_19,
-                'cases_age_20_44': latest.cases_age_20_44,
-                'cases_age_45_64': latest.cases_age_45_64,
-                'cases_age_65_plus': latest.cases_age_65_plus,
-                'cases_age_unknown': latest.cases_age_unknown,
                 'last_update': latest.last_update
             })
+
+    def dump_ages_latest(self):
+        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_ages_latest.csv'), 'w') as csvfile:
+
+            fieldnames = [
+                'age_group',
+                'pct_of_cases',
+                'pct_of_deaths',
+            ]
+
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+
+            max_date = StatewideAgeDate.objects.aggregate(Max('scrape_date'))['scrape_date__max']
+
+            latest_records = StatewideAgeDate.objects.filter(scrape_date=max_date)
+            for lr in latest_records:
+                writer.writerow({
+                    'age_group': lr.age_group,
+                    'pct_of_cases': lr.cases_pct,
+                    'pct_of_deaths': lr.deaths_pct,
+                })
 
     def handle(self, *args, **options):
         self.dump_county_latest()
         self.dump_state_latest()
+        self.dump_ages_latest()

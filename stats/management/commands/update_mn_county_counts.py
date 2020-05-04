@@ -10,7 +10,7 @@ from urllib.request import urlopen
 from django.db.models import Sum
 from django.core.management.base import BaseCommand
 from django.core.exceptions import ObjectDoesNotExist
-from stats.models import County, CountyTestDate, StatewideTotalDate
+from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate
 from stats.utils import slack_latest
 
 from django.conf import settings
@@ -172,26 +172,6 @@ class Command(BaseCommand):
             last_row_values[c] = last_row[k].text
         return last_row_values
 
-    def ages_table_parser(self, soup):
-        ''' should work on multiple columns '''
-        table = soup.find("th", text='Age Group').find_parent("table")
-        rows = table.find_all("tr")
-        num_rows = len(rows)
-        data_rows = []
-        for k, row in enumerate(rows):
-            if k == 0:
-                first_row = row.find_all("th")
-                col_names = [th.text for th in first_row]
-            else:
-                data_row = {}
-                cells = row.find_all(["th", "td"])
-                for k, c in enumerate(col_names):
-                    data_row[c] = cells[k].text
-                data_rows.append(data_row)
-
-        return data_rows
-
-
     def p_regex(self, preceding_text, input_str):
         match = re.search(r'{}: ([\d,]+)'.format(preceding_text), input_str)
         if match:
@@ -218,8 +198,6 @@ class Command(BaseCommand):
         recoveries_table_latest = self.detail_tables_regex(soup, 'No longer needing isolation')
         output['cumulative_statewide_recoveries'] = self.parse_comma_int(recoveries_table_latest['No longer needing isolation'])
 
-        # ages
-        # ages_data = self.ages_table_parser(soup)
         # output['cases_age_0_5'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '0-5 years'][0]
         # output['cases_age_6_19'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '6-19 years'][0]
         # output['cases_age_20_44'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '20-44 years'][0]
@@ -254,6 +232,68 @@ class Command(BaseCommand):
                 optional_plus = ':rotating_light: '
         return '{}{}'.format(optional_plus, f'{input_int:,}')
 
+    def ages_table_parser(self, soup):
+        ''' should work on multiple columns '''
+        table = soup.find("th", text='Age Group').find_parent("table")
+        rows = table.find_all("tr")
+        num_rows = len(rows)
+        data_rows = []
+        for k, row in enumerate(rows):
+            if k == 0:
+                first_row = row.find_all("th")
+                col_names = [th.text for th in first_row]
+            else:
+                data_row = {}
+                cells = row.find_all(["th", "td"])
+                for k, c in enumerate(col_names):
+                    data_row[c] = cells[k].text
+                data_rows.append(data_row)
+
+        return data_rows
+
+    def pct_filter(self, input_str):
+        '''Removing pct sign, and changing <1 to -1'''
+        if input_str == '<1%':
+            return -1
+
+        try:
+            return int(input_str.replace('%', ''))
+        except:
+            return None
+
+    def get_age_data(self, html):
+        soup = BeautifulSoup(html, 'html.parser')
+
+        ages_data = self.ages_table_parser(soup)
+        cleaned_ages_data = []
+        for d in ages_data:
+            d['Percent of Cases'] = self.pct_filter(d['Percent of Cases'])
+            d['Percent of Deaths'] = self.pct_filter(d['Percent of Deaths'])
+            cleaned_ages_data.append(d)
+        return cleaned_ages_data
+
+    def update_age_records(self, age_data):
+        today = datetime.date.today()
+        for a in age_data:
+            try:
+                current_observation = StatewideAgeDate.objects.get(
+                    scrape_date=today,
+                    age_group=a['Age Group']
+                )
+                print('Updating existing ages for {} on {}'.format(a['Age Group'], today))
+            except:
+                print('First age record for {} on {}'.format(a['Age Group'], today))
+                current_observation = StatewideAgeDate(
+                    scrape_date=today,
+                    age_group=a['Age Group']
+                )
+            current_observation.cases_pct = a['Percent of Cases']
+            current_observation.deaths_pct = a['Percent of Deaths']
+            current_observation.save()
+
+    def update_statewide_records(self, statewide_data):
+        today = datetime.date.today()
+
     def update_statewide_records(self, statewide_data):
         previous_statewide_results = StatewideTotalDate.objects.all().order_by('-scrape_date').first()
 
@@ -274,12 +314,6 @@ class Command(BaseCommand):
             current_statewide_observation.currently_in_icu = statewide_data['currently_in_icu']
             current_statewide_observation.cumulative_statewide_deaths = statewide_data['cumulative_statewide_deaths']
             current_statewide_observation.cumulative_statewide_recoveries = statewide_data['cumulative_statewide_recoveries']
-            # current_statewide_observation.cases_age_0_5 = statewide_data['cases_age_0_5']
-            # current_statewide_observation.cases_age_6_19 = statewide_data['cases_age_6_19']
-            # current_statewide_observation.cases_age_20_44 = statewide_data['cases_age_20_44']
-            # current_statewide_observation.cases_age_45_64 = statewide_data['cases_age_45_64']
-            # current_statewide_observation.cases_age_65_plus = statewide_data['cases_age_65_plus']
-            # current_statewide_observation.cases_age_unknown = statewide_data['cases_age_unknown']
 
             current_statewide_observation.save()
         except ObjectDoesNotExist:
@@ -295,13 +329,6 @@ class Command(BaseCommand):
                     currently_in_icu=statewide_data['currently_in_icu'],
                     cumulative_statewide_deaths=statewide_data['cumulative_statewide_deaths'],
                     cumulative_statewide_recoveries=statewide_data['cumulative_statewide_recoveries'],
-
-                    # cases_age_0_5 = statewide_data['cases_age_0_5'],
-                    # cases_age_6_19 = statewide_data['cases_age_6_19'],
-                    # cases_age_20_44 = statewide_data['cases_age_20_44'],
-                    # cases_age_45_64 = statewide_data['cases_age_45_64'],
-                    # cases_age_65_plus = statewide_data['cases_age_65_plus'],
-                    # cases_age_unknown = statewide_data['cases_age_unknown'],
 
                     scrape_date=today,
                 )
@@ -346,6 +373,10 @@ class Command(BaseCommand):
             statewide_data = self.get_statewide_data(html)
             statewide_msg_output = self.update_statewide_records(statewide_data)
 
+            age_data = self.get_age_data(html)
+            print(age_data)
+            age_msg_output = self.update_age_records(age_data)
+
             county_data = self.get_county_data(html)
             county_msg_output = self.update_county_records(county_data)
             # county_msg_output = "Leaving county counts at yesterday's total until state clarifies"
@@ -354,8 +385,9 @@ class Command(BaseCommand):
             if statewide_data['cumulative_positive_tests'] != previous_statewide_cases:
                 new_statewide_cases = statewide_data['cumulative_positive_tests'] - previous_statewide_cases
                 # slack_header = '*{} new cases announced statewide.*\n\n'.format(new_statewide_cases)
+                # slack_latest(statewide_msg_output, '#virus')
                 slack_latest(statewide_msg_output + county_msg_output, '#virus')
-                slack_latest(statewide_msg_output + county_msg_output, '#covid-tracking')
+                # slack_latest(statewide_msg_output + county_msg_output, '#covid-tracking')
             else:
                 # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')
                 # slack_latest('Scraper update: No county changes detected.', '#covid-tracking')

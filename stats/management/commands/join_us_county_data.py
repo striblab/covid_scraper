@@ -14,6 +14,7 @@ class Command(BaseCommand):
     NYT_COUNTY_TIMESERIES_URL = 'https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv'
     NYT_COUNTY_TIMESERIES_LOCAL = os.path.join(settings.BASE_DIR, 'data', 'nyt-us-counties.csv')
     COUNTY_CENTROIDS_PATH = os.path.join(settings.BASE_DIR, 'data', 'us_county_centroids_tl_2019_4326.csv')
+    POP_ESTIMATES_PATH = os.path.join(settings.BASE_DIR, 'data', 'county_pops_2019.csv')
 
     STATE_TIMESERIES_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'state_cases_from_100_timeseries.csv')
     TIMESERIES_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_timeseries.csv')
@@ -78,6 +79,18 @@ class Command(BaseCommand):
             df_merged['longitude_coalesced'] = df_merged.longitude.combine_first(df_merged.INTPTLON)
             df_merged['fips'] = df_merged.fips.combine_first(df_merged.fake_fips)
 
+            # Join to population data created by build_us_county_populations.py (which needs to be run manually one time)
+            county_pops_df = pd.read_csv(self.POP_ESTIMATES_PATH, dtype={'full_fips': object})
+            df_merged = df_merged.merge(
+                county_pops_df,
+                how="left",
+                left_on="fips",
+                right_on="full_fips"
+            )
+
+            df_merged['cases_p_1k'] = round(1000 * (df_merged['cases'] / df_merged['pop_2019']), 3)
+            df_merged['deaths_p_1k'] = round(1000 * (df_merged['deaths'] / df_merged['pop_2019']), 3)
+
             df_subset = df_merged[[
                 'date',
                 'fips',
@@ -85,6 +98,9 @@ class Command(BaseCommand):
                 'county',
                 'cases',
                 'deaths',
+                'pop_2019',
+                'cases_p_1k',
+                'deaths_p_1k',
                 'latitude_coalesced',
                 'longitude_coalesced',
             ]]
@@ -97,7 +113,12 @@ class Command(BaseCommand):
                 'state',
                 'cases',
                 'deaths',
+                # 'pop_2019'
             ]].groupby(['state', 'date']).agg('sum').reset_index()
+
+            # Can't do state per capita this way because not all counties are included
+            # df_bystate['cases_p_1k'] = round(1000 * (df_bystate['cases'] / df_bystate['pop_2019']), 3)
+            # df_bystate['deaths_p_1k'] = round(1000 * (df_bystate['deaths'] / df_bystate['pop_2019']), 3)
 
             df_bystate_100_plus = df_bystate[df_bystate['cases'] >= 100].sort_values(['state', 'date'])
             df_bystate_100_plus['day_counter'] = df_bystate_100_plus.groupby(['state']).cumcount()
@@ -122,6 +143,9 @@ class Command(BaseCommand):
                 'county',
                 'cases',
                 'deaths',
+                'pop_2019',
+                'cases_p_1k',
+                'deaths_p_1k',
                 'latitude',
                 'longitude',
                 'date',
