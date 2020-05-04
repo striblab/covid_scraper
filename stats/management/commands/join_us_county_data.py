@@ -49,6 +49,12 @@ class Command(BaseCommand):
             return self.NYT_COUNTY_TIMESERIES_LOCAL
         return False
 
+    def build_emerging_counties(self, df):
+        '''Output last 2 weeks of data for counties with the highest average percent change in cases over the last week'''
+        counties = df['fips'].unique()
+        print(counties)
+        # df['daily_pct_change'] =
+
     def handle(self, *args, **options):
 
         nyt_csv = self.download_nyt_data()
@@ -77,6 +83,9 @@ class Command(BaseCommand):
             # Combine lat/lng, preferring our manual settings in case there are exceptions
             df_merged['latitude_coalesced'] = df_merged.latitude.combine_first(df_merged.INTPTLAT)
             df_merged['longitude_coalesced'] = df_merged.longitude.combine_first(df_merged.INTPTLON)
+
+            df_merged['latitude_coalesced'] = df_merged['latitude_coalesced'].round(4)
+            df_merged['longitude_coalesced'] = df_merged['longitude_coalesced'].round(4)
             df_merged['fips'] = df_merged.fips.combine_first(df_merged.fake_fips)
 
             # Join to population data created by build_us_county_populations.py (which needs to be run manually one time)
@@ -88,8 +97,8 @@ class Command(BaseCommand):
                 right_on="full_fips"
             )
 
-            df_merged['cases_p_1k'] = round(1000 * (df_merged['cases'] / df_merged['pop_2019']), 3)
-            df_merged['deaths_p_1k'] = round(1000 * (df_merged['deaths'] / df_merged['pop_2019']), 3)
+            df_merged['cases_p_100k'] = round(100000 * (df_merged['cases'] / df_merged['pop_2019']), 1)
+            df_merged['deaths_p_100k'] = round(100000 * (df_merged['deaths'] / df_merged['pop_2019']), 1)
 
             df_subset = df_merged[[
                 'date',
@@ -99,8 +108,8 @@ class Command(BaseCommand):
                 'cases',
                 'deaths',
                 'pop_2019',
-                'cases_p_1k',
-                'deaths_p_1k',
+                'cases_p_100k',
+                'deaths_p_100k',
                 'latitude_coalesced',
                 'longitude_coalesced',
             ]]
@@ -117,8 +126,8 @@ class Command(BaseCommand):
             ]].groupby(['state', 'date']).agg('sum').reset_index()
 
             # Can't do state per capita this way because not all counties are included
-            # df_bystate['cases_p_1k'] = round(1000 * (df_bystate['cases'] / df_bystate['pop_2019']), 3)
-            # df_bystate['deaths_p_1k'] = round(1000 * (df_bystate['deaths'] / df_bystate['pop_2019']), 3)
+            # df_bystate['cases_p_100k'] = round(100000 * (df_bystate['cases'] / df_bystate['pop_2019']), 3)
+            # df_bystate['deaths_p_100k'] = round(100000 * (df_bystate['deaths'] / df_bystate['pop_2019']), 3)
 
             df_bystate_100_plus = df_bystate[df_bystate['cases'] >= 100].sort_values(['state', 'date'])
             df_bystate_100_plus['day_counter'] = df_bystate_100_plus.groupby(['state']).cumcount()
@@ -144,9 +153,11 @@ class Command(BaseCommand):
                 'cases',
                 'deaths',
                 'pop_2019',
-                'cases_p_1k',
-                'deaths_p_1k',
+                'cases_p_100k',
+                'deaths_p_100k',
                 'latitude',
                 'longitude',
                 'date',
             ]].to_csv(self.LATEST_EXPORT_PATH, index=False)
+
+            self.build_emerging_counties(df_subset)
