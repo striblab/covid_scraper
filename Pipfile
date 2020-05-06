@@ -6,6 +6,12 @@ verify_ssl = true
 [dev-packages]
 ipython = "*"
 awscli = "*"
+jupyter = "*"
+pandas = "*"
+geopandas = "*"
+matplotlib = "*"
+descartes = "*"
+geoplot = "*"
 
 [packages]
 django = "*"

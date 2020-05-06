@@ -3,7 +3,8 @@ import csv
 import requests
 import pandas as pd
 import numpy as np
-from datetime import timedelta
+# import datetime
+from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -54,11 +55,10 @@ class Command(BaseCommand):
     def build_emerging_counties(self, df):
         '''Output last 2 weeks of data for counties with the highest average percent change in cases over the last week'''
 
-        target_states_df = df[df['state'].isin(['Minnesota', 'Wisconsin', 'Iowa', 'North Dakota', 'South Dakota', 'Nebraska', 'Illinois'])]
+        target_states_df = df[df['state'].isin(['Minnesota', 'Wisconsin', 'Iowa', 'North Dakota', 'South Dakota', 'Nebraska', 'Illinois', 'Michigan', 'Indiana'])]
 
         counties = target_states_df['fips'].unique()
         out_df = pd.DataFrame()
-        print(counties)
 
         df['date'] = pd.to_datetime(df['date'])
 
@@ -87,6 +87,10 @@ class Command(BaseCommand):
 
         worst_100_cutoff = out_df['cases_weekly_pct_change'].unique()[:100]
         worst_100_df = out_df[out_df['cases_weekly_pct_change'] >= min(worst_100_cutoff)]
+
+
+        # TODO: Clip to last two weeks of data
+        # worst_100_df = worst_100_df[worst_100_df['date'] >= (datetime.today() - timedelta(days=15))]
         worst_100_df.to_csv(self.MIDWEST_EMERGING_COUNTIES_PATH, index=False)
 
     def handle(self, *args, **options):
@@ -136,6 +140,7 @@ class Command(BaseCommand):
 
             df_subset = df_merged[[
                 'date',
+                'STATEFP',
                 'fips',
                 'state',
                 'county',
@@ -147,7 +152,7 @@ class Command(BaseCommand):
                 'latitude_coalesced',
                 'longitude_coalesced',
             ]]
-            df_subset.rename(columns={'latitude_coalesced': 'latitude', 'longitude_coalesced': 'longitude'}, inplace=True)
+            df_subset.rename(columns={'STATEFP': 'state_fips', 'latitude_coalesced': 'latitude', 'longitude_coalesced': 'longitude'}, inplace=True)
 
             print('Making state timeseries...')
 

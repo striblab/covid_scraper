@@ -8,7 +8,7 @@ COUNTY_TIMESERIES_FILENAME=mn_county_timeseries
 COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
 NATIONAL_TIMESERIES_FILENAME=national_cases_deaths_by_county_timeseries
 NATIONAL_LATEST_FILENAME=national_cases_deaths_by_county_latest
-MIDWEST_EMERGING_COUNTIES_PATH=midwest_emerging_counties.csv
+MIDWEST_EMERGING_COUNTIES_PATH=midwest_emerging_counties
 
 echo "Presyncing with Github..."
 python manage.py presync_github_repo
@@ -158,7 +158,18 @@ python manage.py update_dashboard_data
 # --content-type=text/csv \
 # --acl public-read
 
-LATEST_SUPPLIES_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name 'dashboard_*' | sort | tail -n 1))
+for DASHPATH in db_procurement_legacy_* db_days_on_hand_chart_* db_days_on_hand_tbl_* db_crit_care_supply_sources_* db_procurement_*
+do
+
+  LATEST_SUPPLIES_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name $DASHPATH | sort | tail -n 1))
+  echo $LATEST_SUPPLIES_SCRAPE
+  echo "Pushing copy of critical supplies csv..."
+  aws s3 cp $LATEST_SUPPLIES_SCRAPE s3://$S3_URL/dashboard/${LATEST_SUPPLIES_SCRAPE##*/} \
+  --content-type=text/csv \
+  --acl public-read
+done
+
+LATEST_SUPPLIES_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name $DASHPATH | sort | tail -n 1))
 echo $LATEST_SUPPLIES_SCRAPE
 echo "Pushing copy of critical supplies csv..."
 aws s3 cp $LATEST_SUPPLIES_SCRAPE s3://$S3_URL/dashboard/${LATEST_SUPPLIES_SCRAPE##*/} \

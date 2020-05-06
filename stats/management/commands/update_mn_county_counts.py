@@ -40,7 +40,7 @@ class Command(BaseCommand):
 
         for row in table.find_all('tr'):
             tds = row.find_all('td')
-            if len(tds) > 0:
+            if len(tds) > 0 and tds[0].text  != 'Unknown/missing':
                 county_name = tds[0].text
                 county_cases = tds[1].text
                 county_deaths = tds[2].text
@@ -136,7 +136,10 @@ class Command(BaseCommand):
                 deaths_change_text
             )
 
-        return 'COVID scraper county-by-county results: \n\n' + msg_output
+        final_msg = 'COVID scraper county-by-county results: \n\n' + msg_output
+        print(final_msg)
+
+        return final_msg
 
     def get_death_csv(self):
         stream = urlopen(self.DEATH_DATA_URL)
@@ -205,14 +208,18 @@ class Command(BaseCommand):
         # output['cases_age_65_plus'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '65+ years'][0]
         # output['cases_age_unknown'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == 'Unknown/ missing'][0]
 
-        ps = soup.find_all('p')
-        for p in ps:
-            cumulative_positive_tests_match = self.p_regex('Total positive', p.text)
-            if cumulative_positive_tests_match:
-                output['cumulative_positive_tests'] = cumulative_positive_tests_match
+        # ps = soup.find_all('p')
+        # for p in ps:
+        #     cumulative_positive_tests_match = self.p_regex('Total positive', p.text)
+        #     if cumulative_positive_tests_match:
+        #         output['cumulative_positive_tests'] = cumulative_positive_tests_match
 
         uls = soup.find_all('ul')
         for ul in uls:
+            cumulative_positive_tests_match = self.ul_regex('Total positive', ul.text)
+            if cumulative_positive_tests_match:
+                output['cumulative_positive_tests'] = cumulative_positive_tests_match
+
             cumulative_completed_mdh_match = self.ul_regex('Total approximate number of completed tests from the MDH Public Health Lab', ul.text)
             if cumulative_completed_mdh_match:
                 output['cumulative_completed_mdh'] = cumulative_completed_mdh_match
@@ -291,8 +298,6 @@ class Command(BaseCommand):
             current_observation.deaths_pct = a['Percent of Deaths']
             current_observation.save()
 
-    def update_statewide_records(self, statewide_data):
-        today = datetime.date.today()
 
     def update_statewide_records(self, statewide_data):
         previous_statewide_results = StatewideTotalDate.objects.all().order_by('-scrape_date').first()
@@ -352,7 +357,10 @@ class Command(BaseCommand):
             msg_output += '*{}* currently in ICU (*{}* today)\n'.format(f'{current_statewide_observation.currently_in_icu:,}', self.change_sign(icu_change))
             msg_output += '*{}* total tests completed (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_completed_tests:,}', self.change_sign(new_tests))
 
-            return 'COVID scraper found updated data on the <https://www.health.state.mn.us/diseases/coronavirus/situation.html|MDH situation page>...\n\n' + msg_output + '\n'
+            final_msg = 'COVID scraper found updated data on the <https://www.health.state.mn.us/diseases/coronavirus/situation.html|MDH situation page>...\n\n' + msg_output + '\n'
+            print(final_msg)
+
+            return final_msg
 
         return 'COVID scraper: No updates found in statewide numbers.\n\n'
 
