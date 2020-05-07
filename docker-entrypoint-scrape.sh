@@ -9,6 +9,7 @@ COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
 NATIONAL_TIMESERIES_FILENAME=national_cases_deaths_by_county_timeseries
 NATIONAL_LATEST_FILENAME=national_cases_deaths_by_county_latest
 MIDWEST_EMERGING_COUNTIES_PATH=midwest_emerging_counties
+MIDWEST_EMERGING_COUNTIES_WIDE_PATH=midwest_emerging_counties_wide
 
 echo "Presyncing with Github..."
 python manage.py presync_github_repo
@@ -43,7 +44,7 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TESTS_FILENAME-$download_datetime.csv \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TESTS_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 
@@ -51,7 +52,7 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv s3://$S3_URL/csv/$STATEWIDE_LATEST_FILENAME-$download_datetime.csv \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$STATEWIDE_LATEST_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 
@@ -59,7 +60,7 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/$AGES_LATEST_FILENAME-$download_datetime.csv \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$AGES_LATEST_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 
@@ -82,7 +83,7 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/$NATIONAL_LATEST_FILENAME.csv s3://$S3_URL/csv/$NATIONAL_LATEST_FILENAME-$download_datetime.csv \
+  aws s3 cp $EXPORTS_ROOT/$NATIONAL_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$NATIONAL_LATEST_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 
@@ -90,15 +91,23 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/$NATIONAL_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/$NATIONAL_TIMESERIES_FILENAME-$download_datetime.csv \
-  --content-type=text/csv \
-  --acl public-read
+  # aws s3 cp $EXPORTS_ROOT/$NATIONAL_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$NATIONAL_TIMESERIES_FILENAME-$download_datetime.csv \
+  # --content-type=text/csv \
+  # --acl public-read
 
   aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_PATH.csv s3://$S3_URL/csv/$MIDWEST_EMERGING_COUNTIES_PATH.csv \
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_PATH.csv s3://$S3_URL/csv/$MIDWEST_EMERGING_COUNTIES_PATH-$download_datetime.csv \
+  aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_PATH.csv s3://$S3_URL/csv/versions/$MIDWEST_EMERGING_COUNTIES_PATH-$download_datetime.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH.csv s3://$S3_URL/csv/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH.csv s3://$S3_URL/csv/versions/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 
@@ -131,15 +140,15 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/$STATEWIDE_TIMESERIES_FILENAME-$download_datetime.csv \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$STATEWIDE_TIMESERIES_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TIMESERIES_TALL_FILENAME-$download_datetime.csv \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TIMESERIES_TALL_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TIMESERIES_FILENAME-$download_datetime.csv \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TIMESERIES_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 
@@ -169,12 +178,12 @@ do
   --acl public-read
 done
 
-LATEST_SUPPLIES_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name $DASHPATH | sort | tail -n 1))
-echo $LATEST_SUPPLIES_SCRAPE
-echo "Pushing copy of critical supplies csv..."
-aws s3 cp $LATEST_SUPPLIES_SCRAPE s3://$S3_URL/dashboard/${LATEST_SUPPLIES_SCRAPE##*/} \
---content-type=text/csv \
---acl public-read
+# LATEST_SUPPLIES_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name 'dashboard_*' | sort | tail -n 1))
+# echo $LATEST_SUPPLIES_SCRAPE
+# echo "Pushing copy of critical supplies csv..."
+# aws s3 cp $LATEST_SUPPLIES_SCRAPE s3://$S3_URL/dashboard/${LATEST_SUPPLIES_SCRAPE##*/} \
+# --content-type=text/csv \
+# --acl public-read
 
 if (("${LINE_COUNT[0]}" > 2)); then
   echo "Updating Github..."

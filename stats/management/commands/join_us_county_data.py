@@ -22,6 +22,7 @@ class Command(BaseCommand):
     TIMESERIES_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_timeseries.csv')
     LATEST_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_latest.csv')
     MIDWEST_EMERGING_COUNTIES_PATH = os.path.join(settings.BASE_DIR, 'exports', 'midwest_emerging_counties.csv')
+    MIDWEST_EMERGING_COUNTIES_WIDE_PATH = os.path.join(settings.BASE_DIR, 'exports', 'midwest_emerging_counties_wide.csv')
 
     EXTRANEOUS_GEOGRAPHIES = [
         {
@@ -54,6 +55,7 @@ class Command(BaseCommand):
 
     def build_emerging_counties(self, df):
         '''Output last 2 weeks of data for counties with the highest average percent change in cases over the last week'''
+        print('Building emerging hotspots data ...')
 
         target_states_df = df[df['state'].isin(['Minnesota', 'Wisconsin', 'Iowa', 'North Dakota', 'South Dakota', 'Nebraska', 'Illinois', 'Michigan', 'Indiana'])]
 
@@ -88,10 +90,68 @@ class Command(BaseCommand):
         worst_100_cutoff = out_df['cases_weekly_pct_change'].unique()[:100]
         worst_100_df = out_df[out_df['cases_weekly_pct_change'] >= min(worst_100_cutoff)]
 
+        worst_100_df['date_only'] = worst_100_df['date'].dt.date
+
+        # Add image links
+        worst_100_df['map'] = worst_100_df['fips'].apply(lambda x: '![](https://static.startribune.com/news/projects/all/2020-covid-scraper/locator_maps/county_{}.png)'.format(x))
+
+        # Floats to int
+        # worst_100_df.cases = worst_100_df.cases.astype(int)
+        # print(worst_100_df.cases.dtype)
+        postal_codes = pd.DataFrame([
+            {'state': 'Minnesota', 'abbrev': 'MN'},
+            {'state': 'Wisconsin', 'abbrev': 'WI'},
+            {'state': 'Iowa', 'abbrev': 'IA'},
+            {'state': 'Illinois', 'abbrev': 'IL'},
+            {'state': 'Michigan', 'abbrev': 'MI'},
+            {'state': 'North Dakota', 'abbrev': 'ND'},
+            {'state': 'South Dakota', 'abbrev': 'SD'},
+            {'state': 'Nebraska', 'abbrev': 'NE'},
+            {'state': 'Indiana', 'abbrev': 'IN'},
+        ])
+
+        worst_100_df = worst_100_df.merge(
+            postal_codes,
+            how="left",
+            on='state'
+        )
 
         # TODO: Clip to last two weeks of data
         # worst_100_df = worst_100_df[worst_100_df['date'] >= (datetime.today() - timedelta(days=15))]
         worst_100_df.to_csv(self.MIDWEST_EMERGING_COUNTIES_PATH, index=False)
+
+        # Now go wide...
+
+        worst_100_pivot = worst_100_df[worst_100_df['date'] >= '2020-03-01'][[
+            'fips',
+            'date_only',
+            'cases'
+        ]].pivot(
+            index='fips',
+            columns='date_only',
+            values='cases'
+        ).reset_index().add_prefix('cases_')
+        worst_100_pivot = worst_100_pivot.rename(columns={'cases_fips': 'fips'})
+        # print(worst_100_pivot)
+
+        # case_cols = [col for col in worst_100_pivot.columns if 'cases_' in col]
+        # worst_100_pivot[case_cols] = worst_100_pivot[case_cols].fillna(pd.NA)
+        # worst_100_pivot[case_cols] = worst_100_pivot[case_cols].astype(int)
+
+        latest_dates = worst_100_df[['fips', 'date']].groupby(['fips']).agg({'date': 'max'})
+        worst_100_max_df = worst_100_df.merge(
+            latest_dates,
+            how="right",
+            on=['fips', 'date']
+        )
+
+        worst_100_pivot = worst_100_max_df.merge(
+            worst_100_pivot,
+            on='fips'
+        ).drop(columns={'date_only'})
+
+        # print(worst_100_pivot)
+        worst_100_pivot.to_csv(self.MIDWEST_EMERGING_COUNTIES_WIDE_PATH, index=False)
 
     def handle(self, *args, **options):
 

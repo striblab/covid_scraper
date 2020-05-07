@@ -122,9 +122,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         today_statewide = StatewideTotalDate.objects.filter(scrape_date=datetime.date.today())
-        previous_statewide = StatewideTotalDate.objects.all().order_by('-scrape_date')[1]
+        previous_statewide = StatewideTotalDate.objects.all().values('scrape_date', 'cumulative_positive_tests').order_by('-scrape_date')[1]
         if today_statewide and previous_statewide:
-            self.today_statewide_cases = today_statewide[0].cumulative_positive_tests - previous_statewide.cumulative_positive_tests
+            self.today_statewide_cases = today_statewide[0].cumulative_positive_tests - previous_statewide['cumulative_positive_tests']
             if self.today_statewide_cases > 0:
                 print("Updates found for today, including today's date.")
             else:
