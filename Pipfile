@@ -12,6 +12,7 @@ geopandas = "*"
 matplotlib = "*"
 descartes = "*"
 geoplot = "*"
+pillow = "*"
 
 [packages]
 django = "*"
