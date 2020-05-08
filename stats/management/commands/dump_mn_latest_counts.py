@@ -3,9 +3,9 @@ import csv
 
 from django.conf import settings
 
-from django.db.models import Max
+from django.db.models import Max, Count
 from django.core.management.base import BaseCommand
-from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate
+from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death
 
 
 class Command(BaseCommand):
@@ -93,7 +93,30 @@ class Command(BaseCommand):
                     'pct_of_deaths': lr.deaths_pct,
                 })
 
+    def dump_detailed_death_ages_latest(self):
+        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_death_ages_detailed_latest.csv'), 'w') as csvfile:
+
+            fieldnames = [
+                'age_group',
+                'num_deaths',
+                'pct_of_deaths',
+            ]
+
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+
+            total_deaths = Death.objects.all().count()
+            age_group_totals = Death.objects.all().values('age_group').annotate(total=Count('pk')).order_by('age_group')
+            print(age_group_totals)
+            for ag in age_group_totals:
+                writer.writerow({
+                    'age_group': ag['age_group'],
+                    'num_deaths': ag['total'],
+                    'pct_of_deaths': ag['total'] / total_deaths,
+                })
+
     def handle(self, *args, **options):
         self.dump_county_latest()
         self.dump_state_latest()
         self.dump_ages_latest()
+        # self.dump_detailed_death_ages_latest()
