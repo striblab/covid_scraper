@@ -70,8 +70,8 @@ class Command(BaseCommand):
             total_cases = county_timeseries['cases'].max()
             if total_cases > 20:
 
-                county_timeseries['cases_daily_pct_change'] = county_timeseries['cases'].pct_change()
-                county_timeseries['deaths_daily_pct_change'] = county_timeseries['deaths'].pct_change()
+                county_timeseries['cases_daily_pct_change'] = county_timeseries['cases'].pct_change() * 100
+                county_timeseries['deaths_daily_pct_change'] = county_timeseries['deaths'].pct_change() * 100
 
                 county_max_date = county_timeseries['date'].max()
                 county_last_7 = county_timeseries[county_timeseries['date'] > county_max_date - timedelta(days=7)]
@@ -115,6 +115,7 @@ class Command(BaseCommand):
             how="left",
             on='state'
         )
+        worst_100_df['county_state'] = worst_100_df[['county', 'abbrev']].apply(lambda x: ' Co, '.join(x[x.notnull()]), axis = 1)
 
         # TODO: Clip to last two weeks of data
         # worst_100_df = worst_100_df[worst_100_df['date'] >= (datetime.today() - timedelta(days=15))]

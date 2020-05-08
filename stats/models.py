@@ -18,25 +18,6 @@ class StatewideAgeDate(models.Model):
     cases_pct = models.IntegerField(default=None, null=True)
     deaths_pct = models.IntegerField(default=None, null=True)
     last_update = models.DateTimeField(auto_now=True)
-    # cases_age_0_5 = models.IntegerField(default=None, null=True)
-    # cases_age_6_19 = models.IntegerField(default=None, null=True)
-    # cases_age_20_29 = models.IntegerField(default=None, null=True)
-    # cases_age_30_39 = models.IntegerField(default=None, null=True)
-    # cases_age_40_49 = models.IntegerField(default=None, null=True)
-    # cases_age_50_59 = models.IntegerField(default=None, null=True)
-    # cases_age_60_69 = models.IntegerField(default=None, null=True)
-    # cases_age_70_plus = models.IntegerField(default=None, null=True)
-    # cases_age_unknown = models.IntegerField(default=None, null=True)
-    #
-    # cases_age_0_5 = models.IntegerField(default=None, null=True)
-    # cases_age_6_19 = models.IntegerField(default=None, null=True)
-    # cases_age_20_29 = models.IntegerField(default=None, null=True)
-    # cases_age_30_39 = models.IntegerField(default=None, null=True)
-    # cases_age_40_49 = models.IntegerField(default=None, null=True)
-    # cases_age_50_59 = models.IntegerField(default=None, null=True)
-    # cases_age_60_69 = models.IntegerField(default=None, null=True)
-    # cases_age_70_plus = models.IntegerField(default=None, null=True)
-    # cases_age_unknown = models.IntegerField(default=None, null=True)
 
 
 class StatewideTotalDate(models.Model):
@@ -51,16 +32,6 @@ class StatewideTotalDate(models.Model):
 
     cumulative_statewide_deaths = models.IntegerField(default=0)  # Captured separately from county totals, so they may not match
     cumulative_statewide_recoveries = models.IntegerField(default=0)
-
-    # cases_age_0_5 = models.IntegerField(default=None, null=True)
-    # cases_age_6_19 = models.IntegerField(default=None, null=True)
-    # cases_age_20_29 = models.IntegerField(default=None, null=True)
-    # cases_age_30_39 = models.IntegerField(default=None, null=True)
-    # cases_age_40_49 = models.IntegerField(default=None, null=True)
-    # cases_age_50_59 = models.IntegerField(default=None, null=True)
-    # cases_age_60_69 = models.IntegerField(default=None, null=True)
-    # cases_age_70_plus = models.IntegerField(default=None, null=True)
-    # cases_age_unknown = models.IntegerField(default=None, null=True)
 
     scrape_date = models.DateField()
     last_update = models.DateTimeField(auto_now=True)
