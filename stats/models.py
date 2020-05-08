@@ -12,6 +12,17 @@ class County(models.Model):
         return self.name
 
 
+class Death(models.Model):
+    scrape_date = models.DateField()
+    age_group = models.CharField(max_length=100)
+    actual_age = models.IntegerField(null=True)
+    county = models.ForeignKey(County, null=True, on_delete=models.CASCADE)
+    bool_ltc = models.NullBooleanField()
+
+    # scrape_date = models.DateField()
+    last_update = models.DateTimeField(auto_now=True)
+
+
 class StatewideAgeDate(models.Model):
     scrape_date = models.DateField()
     age_group = models.CharField(max_length=100)

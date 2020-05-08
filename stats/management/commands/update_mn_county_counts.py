@@ -7,10 +7,10 @@ import codecs
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
 
-from django.db.models import Sum
+from django.db.models import Sum, Count, Max
 from django.core.management.base import BaseCommand
 from django.core.exceptions import ObjectDoesNotExist
-from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate
+from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death
 from stats.utils import slack_latest
 
 from django.conf import settings
@@ -29,12 +29,11 @@ class Command(BaseCommand):
         else:
             return False
 
-    def get_county_data(self, html):
-        soup = BeautifulSoup(html, 'html.parser')
+    def get_county_data(self, soup):
+        # soup = BeautifulSoup(html, 'html.parser')
 
         county_data = []
 
-        # Right now this is the only table on the page
         # table = soup.find_all('table')[3]
         table = soup.find("th", text="County").find_parent("table")
 
@@ -146,12 +145,12 @@ class Command(BaseCommand):
         csvfile = csv.DictReader(codecs.iterdecode(stream, 'utf-8'))
         return list(csvfile)
 
-    def find_matching_deaths(self, deaths_obj, date, county_name):
-        for row in deaths_obj:
-            # print(row['COUNTY'], datetime.datetime.strptime(row['DATE'], '%m/%d/%Y').date(), date, county_name)
-            if row['COUNTY'] == county_name and datetime.datetime.strptime(row['DATE'], '%m/%d/%Y').date() == date:
-                return row['NUM_DEATHS']
-        return 0
+    # def find_matching_deaths(self, deaths_obj, date, county_name):
+    #     for row in deaths_obj:
+    #         # print(row['COUNTY'], datetime.datetime.strptime(row['DATE'], '%m/%d/%Y').date(), date, county_name)
+    #         if row['COUNTY'] == county_name and datetime.datetime.strptime(row['DATE'], '%m/%d/%Y').date() == date:
+    #             return row['NUM_DEATHS']
+    #     return 0
 
     def ul_regex(self, preceding_text, input_str):
         match = re.search(r'{}: ([\d,]+)'.format(preceding_text), input_str)
@@ -184,9 +183,8 @@ class Command(BaseCommand):
     def parse_comma_int(self, input_str):
         return int(input_str.replace(',', ''))
 
-    def get_statewide_data(self, html):
-        soup = BeautifulSoup(html, 'html.parser')
-
+    def get_statewide_data(self, soup):
+        # soup = BeautifulSoup(html, 'html.parser')
         output = {}
 
         hosp_table_latest = self.detail_tables_regex(soup, 'Hospitalized in ICU (daily)')
@@ -201,12 +199,7 @@ class Command(BaseCommand):
         recoveries_table_latest = self.detail_tables_regex(soup, 'No longer needing isolation')
         output['cumulative_statewide_recoveries'] = self.parse_comma_int(recoveries_table_latest['No longer needing isolation'])
 
-        # output['cases_age_0_5'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '0-5 years'][0]
-        # output['cases_age_6_19'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '6-19 years'][0]
-        # output['cases_age_20_44'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '20-44 years'][0]
-        # output['cases_age_45_64'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '45-64 years'][0]
-        # output['cases_age_65_plus'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == '65+ years'][0]
-        # output['cases_age_unknown'] = [g['Number of cases'] for g in ages_data if g['Age Group'] == 'Unknown/ missing'][0]
+        # output['cumulative_statewide_recoveries'] = self.parse_comma_int(recoveries_table_latest['No longer needing isolation'])
 
         # ps = soup.find_all('p')
         # for p in ps:
@@ -239,9 +232,9 @@ class Command(BaseCommand):
                 optional_plus = ':rotating_light: '
         return '{}{}'.format(optional_plus, f'{input_int:,}')
 
-    def ages_table_parser(self, soup):
+    def full_table_parser(self, soup, find_str):
         ''' should work on multiple columns '''
-        table = soup.find("th", text='Age Group').find_parent("table")
+        table = soup.find("th", text=find_str).find_parent("table")
         rows = table.find_all("tr")
         num_rows = len(rows)
         data_rows = []
@@ -268,10 +261,96 @@ class Command(BaseCommand):
         except:
             return None
 
-    def get_age_data(self, html):
-        soup = BeautifulSoup(html, 'html.parser')
 
-        ages_data = self.ages_table_parser(soup)
+    def get_recent_deaths_data(self, soup):
+        today = datetime.date.today()
+        recent_deaths_ages = self.full_table_parser(soup, 'County of residence') # Fragile
+        cleaned_data = []
+        for group in recent_deaths_ages:
+            clean_row = {
+                'scrape_date': today,
+                'county__name': group['County of residence'],
+                'age_group': group['Age group'],
+                'count': int(group['Number of newly reported deaths']),
+            }
+            cleaned_data.append(clean_row)
+        return cleaned_data
+
+    def get_existing_recent_deaths_records(self):
+        ''' See if you already have any deaths from today'''
+        # today = datetime.date.today()
+        max_death_date = Death.objects.all().aggregate(Max('scrape_date'))['scrape_date__max']
+        most_recent_deaths = Death.objects.filter(scrape_date=max_death_date).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
+        return most_recent_deaths
+        # if max_death_date == today:
+        #     # There is already data for today, compare to that
+        # print(max_death_date)
+        #     today_deaths = Death.objects.filter(scrape_date=today).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
+        #     return today_deaths
+        # else:
+        #     # There isn't data yet for today, so compare to existing max day
+        # if today_deaths.count() > 0:
+        #     # TODO: Are these the same as yesterday's? (I.E. has the daily update not happened yet)
+        #
+        #     return today_deaths
+        #
+        #
+        # return None
+
+    def reconcile_load_recent_deaths(self, scraped_deaths, existing_deaths):
+        if existing_deaths:
+            deaths_to_add = []
+            deaths_to_remove = []
+            for sd in scraped_deaths:
+                similar = [ed for ed in existing_deaths if ed['county__name'] == sd['county__name'] and ed['age_group'] == sd['age_group']]
+                # print('Similar: ', similar)
+                if len(similar) == 0:
+                    # add all to list
+                    deaths_to_add.append(sd)
+                else:
+                    # Check if we have enough or too many for this grouping
+                    unknown_deaths = sd['count'] - similar[0]['count']
+                    if unknown_deaths > 0:
+                        print('Adding {} deaths: {} {}'.format(unknown_deaths, sd['county__name'], sd['age_group']))
+                        sd['count'] = unknown_deaths
+                        deaths_to_add.append(sd)
+                    elif unknown_deaths < 0:
+                        print('WARNING: Subtracting {} deaths: {} {}'.format(unknown_deaths, sd['county__name'], sd['age_group']))
+                        sd['count'] = unknown_deaths
+                        sd['scrape_date'] = similar[0]['scrape_date']  # If you're going to remove, make sure it's from the max_date, not necessarily today
+                        deaths_to_remove.append(sd)
+        else:  # This shouldn't really happen
+            deaths_to_add = scraped_deaths
+
+        # Adding records
+        new_deaths = []
+        for group in deaths_to_add:
+            add_count = group['count']
+            county = County.objects.get(name=group['county__name'])
+            while add_count > 0:
+                death = Death(
+                    scrape_date=group['scrape_date'],
+                    age_group=group['age_group'],
+                    county=county,
+                )
+                new_deaths.append(death)
+                add_count -= 1
+        Death.objects.bulk_create(new_deaths)
+
+        # Removing records
+        extra_deaths = []
+        for group in deaths_to_remove:
+            remove_count = group['count']
+            county = County.objects.get(name=group['county__name'])
+            while remove_count < 0:
+                Death.objects.filter(scrape_date=group['scrape_date'], age_group=group['age_group'], county=county).last().delete()
+                remove_count += 1
+
+
+    def get_age_data(self, soup):
+        # soup = BeautifulSoup(html, 'html.parser')
+
+        ages_data = self.full_table_parser(soup, 'Age Group')
         cleaned_ages_data = []
         for d in ages_data:
             d['Percent of Cases'] = self.pct_filter(d['Percent of Cases'])
@@ -364,7 +443,6 @@ class Command(BaseCommand):
 
         return 'COVID scraper: No updates found in statewide numbers.\n\n'
 
-
     def handle(self, *args, **options):
         html = self.get_page_content()
         if not html:
@@ -378,26 +456,34 @@ class Command(BaseCommand):
 
             previous_statewide_cases = StatewideTotalDate.objects.order_by('-scrape_date').first().cumulative_positive_tests
 
-            statewide_data = self.get_statewide_data(html)
-            statewide_msg_output = self.update_statewide_records(statewide_data)
+            soup = BeautifulSoup(html, 'html.parser')
+            # statewide_data = self.get_statewide_data(soup)
+            # statewide_msg_output = self.update_statewide_records(statewide_data)
+            #
+            age_data = self.get_age_data(soup)
+            # print(age_data)
+            # age_msg_output = self.update_age_records(age_data)
 
-            age_data = self.get_age_data(html)
-            print(age_data)
-            age_msg_output = self.update_age_records(age_data)
+            recent_deaths_data = self.get_recent_deaths_data(soup)
+            print(recent_deaths_data)
 
-            county_data = self.get_county_data(html)
-            county_msg_output = self.update_county_records(county_data)
-            # county_msg_output = "Leaving county counts at yesterday's total until state clarifies"
+            existing_today_deaths = self.get_existing_recent_deaths_records()
+            print(existing_today_deaths)
+            death_msg_output = self.reconcile_load_recent_deaths(recent_deaths_data, existing_today_deaths)
 
-            print(statewide_data['cumulative_positive_tests'], previous_statewide_cases)
-            if statewide_data['cumulative_positive_tests'] != previous_statewide_cases:
-                new_statewide_cases = statewide_data['cumulative_positive_tests'] - previous_statewide_cases
-                # slack_header = '*{} new cases announced statewide.*\n\n'.format(new_statewide_cases)
-                # slack_latest(statewide_msg_output, '#virus')
-                slack_latest(statewide_msg_output + county_msg_output, '#virus')
-                # slack_latest(statewide_msg_output + county_msg_output, '#covid-tracking')
-            else:
-                # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')
-                # slack_latest('Scraper update: No county changes detected.', '#covid-tracking')
-                # slack_latest(statewide_msg_output + county_msg_output, '#virus')  # Force output anyway
-                slack_latest('COVID scraper update: No changes detected.', '#robot-dojo')
+            # county_data = self.get_county_data(soup)
+            # county_msg_output = self.update_county_records(county_data)
+            # # county_msg_output = "Leaving county counts at yesterday's total until state clarifies"
+            #
+            # print(statewide_data['cumulative_positive_tests'], previous_statewide_cases)
+            # if statewide_data['cumulative_positive_tests'] != previous_statewide_cases:
+            #     new_statewide_cases = statewide_data['cumulative_positive_tests'] - previous_statewide_cases
+            #     # slack_header = '*{} new cases announced statewide.*\n\n'.format(new_statewide_cases)
+            #     # slack_latest(statewide_msg_output, '#virus')
+            #     slack_latest(statewide_msg_output + county_msg_output, '#virus')
+            #     # slack_latest(statewide_msg_output + county_msg_output, '#covid-tracking')
+            # else:
+            #     # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')
+            #     # slack_latest('Scraper update: No county changes detected.', '#covid-tracking')
+            #     # slack_latest(statewide_msg_output + county_msg_output, '#virus')  # Force output anyway
+            #     slack_latest('COVID scraper update: No changes detected.', '#robot-dojo')
