@@ -265,12 +265,13 @@ class Command(BaseCommand):
     def get_recent_deaths_data(self, soup):
         today = datetime.date.today()
         recent_deaths_ages = self.full_table_parser(soup, 'County of residence') # Fragile
+        print(recent_deaths_ages)
         cleaned_data = []
         for group in recent_deaths_ages:
             clean_row = {
                 'scrape_date': today,
                 'county__name': group['County of residence'],
-                'age_group': group['Age group'],
+                'age_group': group['Age group'].replace(' years', '').strip(),
                 'count': int(group['Number of newly reported deaths']),
             }
             cleaned_data.append(clean_row)
@@ -286,6 +287,7 @@ class Command(BaseCommand):
             bool_yesterday = False
 
         most_recent_deaths = Death.objects.filter(scrape_date=max_death_date).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
+        print(most_recent_deaths, bool_yesterday)
         return most_recent_deaths, bool_yesterday
         # if max_death_date == today:
         #     # There is already data for today, compare to that
@@ -303,8 +305,21 @@ class Command(BaseCommand):
         # return None
 
     def reconcile_load_recent_deaths(self, scraped_deaths, existing_deaths, bool_yesterday):
+        # print([{i:d[i] for i in d if i != 'scrape_date'} for d in scraped_deaths])
         if bool_yesterday:
-            bool_changes = [i for i in scraped_deaths if i not in existing_deaths] == []
+            print('Last data is from yesterday')
+            # TODO: Date is different, that is why you fail
+
+            # date_stripped_scraped = [{'county__name': i['county__name'], 'age_group': i['age_group'], 'count': i['count']} for i in scraped_deaths]
+            date_stripped_scraped = [{i:d[i] for i in d if i != 'scrape_date'} for d in scraped_deaths]
+            date_stripped_existing = [{i:d[i] for i in d if i != 'scrape_date'} for d in existing_deaths]
+            print(date_stripped_scraped)
+            print(date_stripped_existing)
+
+            bool_changes = [i for i in date_stripped_scraped if i not in date_stripped_existing] != []
+            print(bool_changes)
+
+
             if bool_changes:
                 print('New data for today...')
                 existing_deaths = None  # Ignore old data
@@ -334,7 +349,18 @@ class Command(BaseCommand):
                         sd['count'] = unknown_deaths
                         sd['scrape_date'] = similar[0]['scrape_date']  # If you're going to remove, make sure it's from the max_date, not necessarily today
                         deaths_to_remove.append(sd)
+
+            # Removing records
+            extra_deaths = []
+            for group in deaths_to_remove:
+                remove_count = group['count']
+                county = County.objects.get(name=group['county__name'])
+                while remove_count < 0:
+                    Death.objects.filter(scrape_date=group['scrape_date'], age_group=group['age_group'], county=county).last().delete()
+                    remove_count += 1
+
         else:  # This should happen on first run of the day with changes
+            print('Starting fresh...')
             deaths_to_add = scraped_deaths
 
         # Adding records
@@ -351,15 +377,6 @@ class Command(BaseCommand):
                 new_deaths.append(death)
                 add_count -= 1
         Death.objects.bulk_create(new_deaths)
-
-        # Removing records
-        extra_deaths = []
-        for group in deaths_to_remove:
-            remove_count = group['count']
-            county = County.objects.get(name=group['county__name'])
-            while remove_count < 0:
-                Death.objects.filter(scrape_date=group['scrape_date'], age_group=group['age_group'], county=county).last().delete()
-                remove_count += 1
 
 
     def get_age_data(self, soup):

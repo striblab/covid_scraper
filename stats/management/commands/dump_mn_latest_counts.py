@@ -1,11 +1,12 @@
 import os
+import re
 import csv
 
 from django.conf import settings
 
 from django.db.models import Max, Count
 from django.core.management.base import BaseCommand
-from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death
+from stats.models import County, AgeGroupPop, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death
 
 
 class Command(BaseCommand):
@@ -78,6 +79,7 @@ class Command(BaseCommand):
                 'age_group',
                 'pct_of_cases',
                 'pct_of_deaths',
+                'pct_state_pop'
             ]
 
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -85,13 +87,26 @@ class Command(BaseCommand):
 
             max_date = StatewideAgeDate.objects.aggregate(Max('scrape_date'))['scrape_date__max']
 
-            latest_records = StatewideAgeDate.objects.filter(scrape_date=max_date)
-            for lr in latest_records:
+            age_groups = AgeGroupPop.objects.all().order_by('pk')
+            for a in age_groups:
+                # print(a.age_group)
+                    # print(s.age_group)
+                lr = StatewideAgeDate.objects.get(age_group=a.age_group, scrape_date=max_date)
+            # for lr in latest_records:
                 writer.writerow({
                     'age_group': lr.age_group,
                     'pct_of_cases': lr.cases_pct,
                     'pct_of_deaths': lr.deaths_pct,
+                    'pct_state_pop': a.pct_pop
                 })
+
+            missing = StatewideAgeDate.objects.get(age_group='Unknown/missing', scrape_date=max_date)
+            writer.writerow({
+                'age_group': missing.age_group,
+                'pct_of_cases': missing.cases_pct,
+                'pct_of_deaths': missing.deaths_pct,
+                'pct_state_pop': 'N/A'
+            })
 
     def dump_detailed_death_ages_latest(self):
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_death_ages_detailed_latest.csv'), 'w') as csvfile:
@@ -107,8 +122,13 @@ class Command(BaseCommand):
 
             total_deaths = Death.objects.all().count()
             age_group_totals = Death.objects.all().values('age_group').annotate(total=Count('pk')).order_by('age_group')
-            print(age_group_totals)
+            # print(age_group_totals)
+
             for ag in age_group_totals:
+                ag['age_start_int'] = int(re.match(r'([0-9]+)', ag['age_group']).group(0))
+
+            for ag in sorted(age_group_totals, key = lambda i: i['age_start_int']):
+                # print(ag['age_start_int'])
                 writer.writerow({
                     'age_group': ag['age_group'],
                     'num_deaths': ag['total'],
@@ -119,4 +139,4 @@ class Command(BaseCommand):
         self.dump_county_latest()
         self.dump_state_latest()
         self.dump_ages_latest()
-        # self.dump_detailed_death_ages_latest()
+        self.dump_detailed_death_ages_latest()

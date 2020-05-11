@@ -11,6 +11,12 @@ class County(models.Model):
     def __str__(self):
         return self.name
 
+class AgeGroupPop(models.Model):
+    ''' static population stats '''
+    age_group = models.CharField(max_length=100)
+    population = models.IntegerField()
+    pct_pop = models.IntegerField(null=True)
+
 
 class Death(models.Model):
     scrape_date = models.DateField()
