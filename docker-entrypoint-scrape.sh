@@ -3,6 +3,7 @@ EXPORTS_ROOT=covid_scraper/exports
 COUNTY_TESTS_FILENAME=mn_positive_tests_by_county
 STATEWIDE_LATEST_FILENAME=mn_statewide_latest
 AGES_LATEST_FILENAME=mn_ages_latest
+DEATH_AGES_LATEST_FILENAME=mn_death_ages_detailed_latest
 STATEWIDE_TIMESERIES_FILENAME=mn_statewide_timeseries
 COUNTY_TIMESERIES_FILENAME=mn_county_timeseries
 COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
@@ -61,6 +62,14 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --acl public-read
 
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$AGES_LATEST_FILENAME-$download_datetime.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$DEATH_AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/$DEATH_AGES_LATEST_FILENAME.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$DEATH_AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$DEATH_AGES_LATEST_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 
