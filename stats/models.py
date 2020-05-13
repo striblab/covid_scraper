@@ -34,7 +34,15 @@ class StatewideAgeDate(models.Model):
     age_group = models.CharField(max_length=100)
     cases_pct = models.IntegerField(default=None, null=True)
     deaths_pct = models.IntegerField(default=None, null=True)
+    case_count = models.IntegerField(default=None, null=True)
+    death_count = models.IntegerField(default=None, null=True)
     last_update = models.DateTimeField(auto_now=True)
+
+
+# class StatewideCasesBySampleDate(models.Model):
+#     date = models.DateField()
+#     new_cases = models.IntegerField(default=0)
+#     total_cases = models.IntegerField(default=0)
 
 
 class StatewideTotalDate(models.Model):

@@ -35,11 +35,14 @@ class Command(BaseCommand):
         county_data = []
 
         # table = soup.find_all('table')[3]
-        table = soup.find("th", text="County").find_parent("table")
+        # parent_div = soup.find("p", text=re.compile('County of residence data table'))
+        # print(parent_div)
+        table = soup.find("th", text="Deaths").find_parent("table")
 
         for row in table.find_all('tr'):
             tds = row.find_all('td')
             if len(tds) > 0 and tds[0].text  != 'Unknown/missing':
+                print(tds)
                 county_name = tds[0].text
                 county_cases = tds[1].text
                 county_deaths = tds[2].text
@@ -51,7 +54,9 @@ class Command(BaseCommand):
         msg_output = ''
 
         today = datetime.date.today()
-        num_counties_with_cases = len(county_data)
+        print(county_data)
+        num_counties_with_cases = len([c for c in county_data if self.parse_comma_int(c[1]) > 0])
+
         msg_output += '{} counties with at least 1 confirmed case\n\n'.format(num_counties_with_cases)
 
         for observation in county_data:
@@ -140,11 +145,6 @@ class Command(BaseCommand):
 
         return final_msg
 
-    def get_death_csv(self):
-        stream = urlopen(self.DEATH_DATA_URL)
-        csvfile = csv.DictReader(codecs.iterdecode(stream, 'utf-8'))
-        return list(csvfile)
-
     # def find_matching_deaths(self, deaths_obj, date, county_name):
     #     for row in deaths_obj:
     #         # print(row['COUNTY'], datetime.datetime.strptime(row['DATE'], '%m/%d/%Y').date(), date, county_name)
@@ -183,6 +183,13 @@ class Command(BaseCommand):
     def parse_comma_int(self, input_str):
         return int(input_str.replace(',', ''))
 
+    def get_statewide_cases_timeseries(self, soup):
+        '''How to deal with back-dated statewide totals if they use sample dates'''
+        cases_timeseries = self.full_table_parser(soup, 'Specimen collection date') # Fragile
+        print(cases_timeseries)
+
+        # parse_comma_int
+
     def get_statewide_data(self, soup):
         # soup = BeautifulSoup(html, 'html.parser')
         output = {}
@@ -196,8 +203,8 @@ class Command(BaseCommand):
         deaths_table_latest = self.detail_tables_regex(soup, 'Total deaths')
         output['cumulative_statewide_deaths'] = self.parse_comma_int(deaths_table_latest['Total deaths'])
 
-        recoveries_table_latest = self.detail_tables_regex(soup, 'No longer needing isolation')
-        output['cumulative_statewide_recoveries'] = self.parse_comma_int(recoveries_table_latest['No longer needing isolation'])
+        # recoveries_table_latest = self.detail_tables_regex(soup, 'No longer needing isolation')
+        # output['cumulative_statewide_recoveries'] = self.parse_comma_int(recoveries_table_latest['No longer needing isolation'])
 
         # output['cumulative_statewide_recoveries'] = self.parse_comma_int(recoveries_table_latest['No longer needing isolation'])
 
@@ -220,6 +227,11 @@ class Command(BaseCommand):
             cumulative_completed_private_match = self.ul_regex('Total approximate number of completed tests from external laboratories', ul.text)
             if cumulative_completed_private_match:
                 output['cumulative_completed_private'] = cumulative_completed_private_match
+
+            recoveries_match = self.ul_regex('Patients no longer needing isolation', ul.text)
+            if recoveries_match:
+                output['cumulative_statewide_recoveries'] = recoveries_match
+
 
         # print(cumulative_hospitalized, currently_hospitalized, currently_in_icu)
         return output
@@ -246,6 +258,7 @@ class Command(BaseCommand):
                 data_row = {}
                 cells = row.find_all(["th", "td"])
                 for k, c in enumerate(col_names):
+                    # print(cells[k].text)
                     data_row[c] = cells[k].text
                 data_rows.append(data_row)
 
@@ -385,8 +398,8 @@ class Command(BaseCommand):
         ages_data = self.full_table_parser(soup, 'Age Group')
         cleaned_ages_data = []
         for d in ages_data:
-            d['Percent of Cases'] = self.pct_filter(d['Percent of Cases'])
-            d['Percent of Deaths'] = self.pct_filter(d['Percent of Deaths'])
+            d['Number of Cases'] = self.pct_filter(d['Number of Cases'])
+            d['Number of Deaths'] = self.pct_filter(d['Number of Deaths'])
             cleaned_ages_data.append(d)
         return cleaned_ages_data
 
@@ -405,8 +418,8 @@ class Command(BaseCommand):
                     scrape_date=today,
                     age_group=a['Age Group']
                 )
-            current_observation.cases_pct = a['Percent of Cases']
-            current_observation.deaths_pct = a['Percent of Deaths']
+            current_observation.case_count = a['Number of Cases']
+            current_observation.death_count = a['Number of Deaths']
             current_observation.save()
 
 
@@ -492,16 +505,18 @@ class Command(BaseCommand):
             statewide_data = self.get_statewide_data(soup)
             statewide_msg_output = self.update_statewide_records(statewide_data)
 
+            self.get_statewide_cases_timeseries(soup)
+
             age_data = self.get_age_data(soup)
             # print(age_data)
             age_msg_output = self.update_age_records(age_data)
 
-            recent_deaths_data = self.get_recent_deaths_data(soup)
-            print(recent_deaths_data)
-
-            existing_today_deaths, bool_yesterday = self.get_existing_recent_deaths_records()
-            print(existing_today_deaths, bool_yesterday)
-            death_msg_output = self.reconcile_load_recent_deaths(recent_deaths_data, existing_today_deaths, bool_yesterday)
+            # recent_deaths_data = self.get_recent_deaths_data(soup)
+            # print(recent_deaths_data)
+            #
+            # existing_today_deaths, bool_yesterday = self.get_existing_recent_deaths_records()
+            # print(existing_today_deaths, bool_yesterday)
+            # death_msg_output = self.reconcile_load_recent_deaths(recent_deaths_data, existing_today_deaths, bool_yesterday)
 
             county_data = self.get_county_data(soup)
             county_msg_output = self.update_county_records(county_data)

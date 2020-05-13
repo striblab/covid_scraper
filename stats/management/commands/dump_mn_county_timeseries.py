@@ -56,6 +56,7 @@ class Command(BaseCommand):
         records_by_county = []
         for c in County.objects.all().order_by('name'):
             records = CountyTestDate.objects.filter(county=c).values('scrape_date', 'county__name', 'daily_count', 'cumulative_count', 'daily_deaths', 'cumulative_deaths')
+            county_running_total = 0
             # print(records)
             for d in dates:
                 if d == datetime.date.today() and self.today_statewide_cases == 0:
@@ -63,12 +64,13 @@ class Command(BaseCommand):
                 else:
                     try:
                         county_date_record = [r for r in records if r['scrape_date'] == d][0]
+                        county_running_total = county_date_record['cumulative_count']
                     except:
                         county_date_record = {
                             'scrape_date': d,
                             'county__name': c.name,
                             'daily_count': 0,
-                            'cumulative_count': 0,
+                            'cumulative_count': county_running_total,
                             'daily_deaths': 0,
                             'cumulative_deaths': 0
                         }
@@ -99,18 +101,26 @@ class Command(BaseCommand):
         fieldnames = ['date', 'county', 'daily_cases', 'cumulative_cases', 'daily_deaths', 'cumulative_deaths']
         rows = []
 
-        for c in CountyTestDate.objects.all().order_by('scrape_date', 'county__name'):
-            if c.scrape_date == datetime.date.today() and self.today_statewide_cases == 0:
+        for c in CountyTestDate.objects.all().values(
+            'scrape_date',
+            'county__name',
+            'daily_count',
+            'cumulative_count',
+            'daily_deaths',
+            'cumulative_deaths',
+        ).order_by('scrape_date', 'county__name'):
+            # print(c)
+            if c['scrape_date'] == datetime.date.today() and self.today_statewide_cases == 0:
                 pass  # Ignore if there's no new results for today
             else:
                 # print(c.scrape_date, c.county.name, c.cumulative_count)
                 row = {
-                    'date': c.scrape_date.strftime('%Y-%m-%d'),
-                    'county': c.county.name,
-                    'daily_cases': c.daily_count,
-                    'cumulative_cases': c.cumulative_count,
-                    'daily_deaths': c.daily_deaths,
-                    'cumulative_deaths': c.cumulative_deaths
+                    'date': c['scrape_date'].strftime('%Y-%m-%d'),
+                    'county': c['county__name'],
+                    'daily_cases': c['daily_count'],
+                    'cumulative_cases': c['cumulative_count'],
+                    'daily_deaths': c['daily_deaths'],
+                    'cumulative_deaths': c['cumulative_deaths']
                 }
                 rows.append(row)
 
