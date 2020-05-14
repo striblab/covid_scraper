@@ -39,10 +39,19 @@ class StatewideAgeDate(models.Model):
     last_update = models.DateTimeField(auto_now=True)
 
 
-# class StatewideCasesBySampleDate(models.Model):
-#     date = models.DateField()
-#     new_cases = models.IntegerField(default=0)
-#     total_cases = models.IntegerField(default=0)
+class StatewideCasesBySampleDate(models.Model):
+    sample_date = models.DateField(null=True)
+    new_cases = models.IntegerField(default=0)
+    total_cases = models.IntegerField(default=0)
+    scrape_date = models.DateField()
+
+
+class StatewideTestsDate(models.Model):
+    reported_date = models.DateField(null=True)
+    new_state_tests = models.IntegerField(default=0)
+    new_external_tests = models.IntegerField(default=0)
+    total_tests = models.IntegerField(default=0)
+    scrape_date = models.DateField()
 
 
 class StatewideTotalDate(models.Model):

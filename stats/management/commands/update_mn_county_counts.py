@@ -10,7 +10,7 @@ from urllib.request import urlopen
 from django.db.models import Sum, Count, Max
 from django.core.management.base import BaseCommand
 from django.core.exceptions import ObjectDoesNotExist
-from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death
+from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death, StatewideCasesBySampleDate, StatewideTestsDate
 from stats.utils import slack_latest
 
 from django.conf import settings
@@ -183,12 +183,73 @@ class Command(BaseCommand):
     def parse_comma_int(self, input_str):
         return int(input_str.replace(',', ''))
 
+    def parse_mdh_date(self, input_str, today):
+        return datetime.datetime.strptime('{}/{}'.format(input_str, today.year), '%m/%d/%Y')
+
     def get_statewide_cases_timeseries(self, soup):
         '''How to deal with back-dated statewide totals if they use sample dates'''
+        print('Parsing statewide cases timeseries...')
         cases_timeseries = self.full_table_parser(soup, 'Specimen collection date') # Fragile
-        print(cases_timeseries)
+        # print(cases_timeseries)
+        if len(cases_timeseries) > 0:
+            today = datetime.date.today()
+            # Remove old records from today
+            existing_today_records = StatewideCasesBySampleDate.objects.filter(scrape_date=today)
+            print('Removing {} records of case timeseries data'.format(existing_today_records.count()))
+            existing_today_records.delete()
+            case_objs = []
+            for c in cases_timeseries:
+                if c['Specimen collection date'] == 'Unknown/missing':
+                    sample_date = None
+                else:
+                    sample_date = self.parse_mdh_date(c['Specimen collection date'], today)
 
-        # parse_comma_int
+                if c['Positive cases'] == '':
+                    new_cases = '0'
+                else:
+                    new_cases = c['Positive cases']
+
+                co = StatewideCasesBySampleDate(
+                    sample_date=sample_date,
+                    new_cases=self.parse_comma_int(new_cases),
+                    total_cases=self.parse_comma_int(c['Cumulative positive cases']),
+                    scrape_date=today,
+                )
+                case_objs.append(co)
+            print('Adding {} records of case timeseries data'.format(len(case_objs)))
+            StatewideCasesBySampleDate.objects.bulk_create(case_objs)
+
+    def get_statewide_tests_timeseries(self, soup):
+        print('Parsing statewide tests timeseries...')
+        tests_timeseries = self.full_table_parser(soup, 'Completed tests reported from external laboratories (daily)') # Fragile
+        # print(tests_timeseries)
+
+        if len(tests_timeseries) > 0:
+            today = datetime.date.today()
+            # Remove old records from today
+            existing_today_records = StatewideTestsDate.objects.filter(scrape_date=today)
+            print('Removing {} records of test timeseries data'.format(existing_today_records.count()))
+            existing_today_records.delete()
+            test_objs = []
+            for c in tests_timeseries:
+                if c['Date reported to MDH'] == 'Unknown/missing':
+                    reported_date = None
+                else:
+                    reported_date = self.parse_mdh_date(c['Date reported to MDH'], today)
+
+                std = StatewideTestsDate(
+                    reported_date=reported_date,
+                    new_state_tests=self.parse_comma_int(c['Completed tests reported from the MDH Public Health Lab (daily)']),
+                    new_external_tests=self.parse_comma_int(c['Completed tests reported from external laboratories (daily)']),
+                    total_tests=self.parse_comma_int(c['Total approximate number of completed tests ']),
+                    scrape_date=today,
+                )
+                test_objs.append(std)
+            print('Adding {} records of test timeseries data'.format(len(test_objs)))
+            StatewideTestsDate.objects.bulk_create(test_objs)
+
+
+    # TODO: Hospitalization timeseries table
 
     def get_statewide_data(self, soup):
         # soup = BeautifulSoup(html, 'html.parser')
@@ -521,7 +582,8 @@ class Command(BaseCommand):
             # statewide_data = self.get_statewide_data(soup)
             # statewide_msg_output = self.update_statewide_records(statewide_data)
             #
-            # self.get_statewide_cases_timeseries(soup)
+            self.get_statewide_cases_timeseries(soup)
+            self.get_statewide_tests_timeseries(soup)
             #
             # age_data = self.get_age_data(soup)
             # # print(age_data)
