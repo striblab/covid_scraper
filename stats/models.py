@@ -40,6 +40,7 @@ class StatewideAgeDate(models.Model):
 
 
 class StatewideCasesBySampleDate(models.Model):
+    '''used for timeseries and charts'''
     sample_date = models.DateField(null=True)
     new_cases = models.IntegerField(default=0)
     total_cases = models.IntegerField(default=0)
@@ -47,6 +48,7 @@ class StatewideCasesBySampleDate(models.Model):
 
 
 class StatewideTestsDate(models.Model):
+    '''used for timeseries and charts'''
     reported_date = models.DateField(null=True)
     new_state_tests = models.IntegerField(default=0)
     new_external_tests = models.IntegerField(default=0)
@@ -55,6 +57,11 @@ class StatewideTestsDate(models.Model):
 
 
 class StatewideTotalDate(models.Model):
+    '''used for topline numbers'''
+    removed_cases = models.IntegerField(default=0, null=True)
+    new_cases = models.IntegerField(default=0, null=True)
+    new_deaths = models.IntegerField(default=0, null=True)
+
     cumulative_positive_tests = models.IntegerField(default=0)
     cumulative_completed_tests = models.IntegerField(default=0)
     cumulative_completed_mdh = models.IntegerField(default=0)

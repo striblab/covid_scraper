@@ -275,11 +275,30 @@ class Command(BaseCommand):
         #     if cumulative_positive_tests_match:
         #         output['cumulative_positive_tests'] = cumulative_positive_tests_match
 
+        new_cases_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported cases')).find_parent('td').find('strong').text)
+        print(new_cases_match)
+        if new_cases_match:
+            output['new_cases'] = new_cases_match
+
+        new_deaths_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported deaths')).find_parent('td').find('strong').text)
+        print(new_deaths_match)
+        if new_deaths_match:
+            output['new_deaths'] = new_deaths_match
+
+        # daily_cases_removed_match = self.ul_regex('Cases removed', ul.text)
+        # if daily_cases_removed_match:
+        #     output['removed_cases'] = daily_cases_removed_match
+
         uls = soup.find_all('ul')
         for ul in uls:
             cumulative_positive_tests_match = self.ul_regex('Total positive', ul.text)
             if cumulative_positive_tests_match:
                 output['cumulative_positive_tests'] = cumulative_positive_tests_match
+
+            daily_cases_removed_match = self.ul_regex('Cases removed\*', ul.text)
+            print(daily_cases_removed_match)
+            if daily_cases_removed_match:
+                output['removed_cases'] = daily_cases_removed_match
 
             cumulative_completed_mdh_match = self.ul_regex('Total approximate number of completed tests from the MDH Public Health Lab', ul.text)
             if cumulative_completed_mdh_match:
@@ -495,6 +514,10 @@ class Command(BaseCommand):
             )
             print('Updating existing statewide for {}'.format(today))
 
+            current_statewide_observation.removed_cases = statewide_data['removed_cases']
+            current_statewide_observation.new_cases = statewide_data['new_cases']
+            current_statewide_observation.new_deaths = statewide_data['new_deaths']
+
             current_statewide_observation.cumulative_positive_tests = statewide_data['cumulative_positive_tests']
             current_statewide_observation.cumulative_completed_tests = total_statewide_tests
             current_statewide_observation.cumulative_completed_mdh = statewide_data['cumulative_completed_mdh']
@@ -510,6 +533,10 @@ class Command(BaseCommand):
             try:
                 print('Creating 1st statewide record for {}'.format(today))
                 current_statewide_observation = StatewideTotalDate(
+                    removed_cases=statewide_data['removed_cases'],
+                    new_cases=statewide_data['new_cases'],
+                    new_deaths=statewide_data['new_deaths'],
+
                     cumulative_positive_tests=statewide_data['cumulative_positive_tests'],
                     cumulative_completed_tests=total_statewide_tests,
                     cumulative_completed_mdh=statewide_data['cumulative_completed_mdh'],

@@ -44,14 +44,17 @@ class Command(BaseCommand):
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_latest.csv'), 'w') as csvfile:
             fieldnames = [
                 'total_positive_tests',
+                'daily_positive_tests',
+                'daily_removed_tests',
+                'total_statewide_deaths',
+                'daily_statewide_deaths',
+                'total_statewide_recoveries',
                 'total_completed_tests',
                 'total_completed_mdh',
                 'total_completed_private',
                 'total_hospitalized',
                 'currently_hospitalized',
                 'currently_in_icu',
-                'total_statewide_deaths',
-                'total_statewide_recoveries',
                 'last_update',
             ]
 
@@ -61,14 +64,17 @@ class Command(BaseCommand):
             latest = StatewideTotalDate.objects.all().order_by('-last_update').first()
             writer.writerow({
                 'total_positive_tests': latest.cumulative_positive_tests,
+                'daily_positive_tests': latest.new_cases,
+                'daily_removed_tests': latest.removed_cases,
+                'total_statewide_deaths': latest.cumulative_statewide_deaths,
+                'daily_statewide_deaths': latest.new_deaths,
+                'total_statewide_recoveries': latest.cumulative_statewide_recoveries,
                 'total_completed_tests': latest.cumulative_completed_tests,
                 'total_completed_mdh': latest.cumulative_completed_mdh,
                 'total_completed_private': latest.cumulative_completed_private,
                 'total_hospitalized': latest.cumulative_hospitalized,
                 'currently_hospitalized': latest.currently_hospitalized,
                 'currently_in_icu': latest.currently_in_icu,
-                'total_statewide_deaths': latest.cumulative_statewide_deaths,
-                'total_statewide_recoveries': latest.cumulative_statewide_recoveries,
                 'last_update': latest.last_update
             })
 
