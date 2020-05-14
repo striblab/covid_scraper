@@ -41,7 +41,7 @@ class Command(BaseCommand):
                 topline_timeseries_values[s['scrape_date']] = s
             # print(topline_timeseries_values)
 
-            min_date = StatewideTotalDate.objects.filter(cumulative_positive_tests__gt=0).aggregate(min_date=Min('scrape_date'))['min_date']
+            min_date = StatewideCasesBySampleDate.objects.all().aggregate(min_date=Min('sample_date'))['min_date']
             max_date = StatewideTotalDate.objects.filter(cumulative_positive_tests__gt=0).aggregate(max_date=Max('scrape_date'))['max_date']
             current_date = min_date
 
