@@ -579,36 +579,36 @@ class Command(BaseCommand):
             else:
                 print('No update yet today')
 
-            # statewide_data = self.get_statewide_data(soup)
-            # statewide_msg_output = self.update_statewide_records(statewide_data)
-            #
+            statewide_data = self.get_statewide_data(soup)
+            statewide_msg_output = self.update_statewide_records(statewide_data)
+
             self.get_statewide_cases_timeseries(soup)
             self.get_statewide_tests_timeseries(soup)
+
+            age_data = self.get_age_data(soup)
+            # print(age_data)
+            age_msg_output = self.update_age_records(age_data)
+
+            # recent_deaths_data = self.get_recent_deaths_data(soup)
+            # print(recent_deaths_data)
             #
-            # age_data = self.get_age_data(soup)
-            # # print(age_data)
-            # age_msg_output = self.update_age_records(age_data)
-            #
-            # # recent_deaths_data = self.get_recent_deaths_data(soup)
-            # # print(recent_deaths_data)
-            # #
-            # # existing_today_deaths, bool_yesterday = self.get_existing_recent_deaths_records()
-            # # print(existing_today_deaths, bool_yesterday)
-            # # death_msg_output = self.reconcile_load_recent_deaths(recent_deaths_data, existing_today_deaths, bool_yesterday)
-            #
-            # county_data = self.get_county_data(soup)
-            # county_msg_output = self.update_county_records(county_data)
-            # # county_msg_output = "Leaving county counts at yesterday's total until state clarifies"
-            #
-            # print(statewide_data['cumulative_positive_tests'], previous_statewide_cases)
-            # if statewide_data['cumulative_positive_tests'] != previous_statewide_cases:
-            #     new_statewide_cases = statewide_data['cumulative_positive_tests'] - previous_statewide_cases
-            #     # slack_header = '*{} new cases announced statewide.*\n\n'.format(new_statewide_cases)
-            #     # slack_latest(statewide_msg_output, '#virus')
-            #     slack_latest(statewide_msg_output + county_msg_output, '#virus')
-            #     # slack_latest(statewide_msg_output + county_msg_output, '#covid-tracking')
-            # else:
-            #     # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')
-            #     # slack_latest('Scraper update: No county changes detected.', '#covid-tracking')
-            #     # slack_latest(statewide_msg_output + county_msg_output, '#virus')  # Force output anyway
-            #     slack_latest('COVID scraper update: No changes detected.', '#robot-dojo')
+            # existing_today_deaths, bool_yesterday = self.get_existing_recent_deaths_records()
+            # print(existing_today_deaths, bool_yesterday)
+            # death_msg_output = self.reconcile_load_recent_deaths(recent_deaths_data, existing_today_deaths, bool_yesterday)
+
+            county_data = self.get_county_data(soup)
+            county_msg_output = self.update_county_records(county_data)
+            # county_msg_output = "Leaving county counts at yesterday's total until state clarifies"
+
+            print(statewide_data['cumulative_positive_tests'], previous_statewide_cases)
+            if statewide_data['cumulative_positive_tests'] != previous_statewide_cases:
+                new_statewide_cases = statewide_data['cumulative_positive_tests'] - previous_statewide_cases
+                # slack_header = '*{} new cases announced statewide.*\n\n'.format(new_statewide_cases)
+                # slack_latest(statewide_msg_output, '#virus')
+                slack_latest(statewide_msg_output + county_msg_output, '#virus')
+                # slack_latest(statewide_msg_output + county_msg_output, '#covid-tracking')
+            else:
+                # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')
+                # slack_latest('Scraper update: No county changes detected.', '#covid-tracking')
+                # slack_latest(statewide_msg_output + county_msg_output, '#virus')  # Force output anyway
+                slack_latest('COVID scraper update: No changes detected.', '#robot-dojo')
