@@ -42,7 +42,7 @@ class Command(BaseCommand):
         for row in table.find_all('tr'):
             tds = row.find_all('td')
             if len(tds) > 0 and tds[0].text  != 'Unknown/missing':
-                print(tds)
+                # print(tds)
                 county_name = tds[0].text
                 county_cases = tds[1].text
                 county_deaths = tds[2].text
@@ -54,7 +54,7 @@ class Command(BaseCommand):
         msg_output = ''
 
         today = datetime.date.today()
-        print(county_data)
+        # print(county_data)
         num_counties_with_cases = len([c for c in county_data if self.parse_comma_int(c[1]) > 0])
 
         msg_output += '{} counties with at least 1 confirmed case\n\n'.format(num_counties_with_cases)
@@ -186,7 +186,7 @@ class Command(BaseCommand):
     def parse_mdh_date(self, input_str, today):
         return datetime.datetime.strptime('{}/{}'.format(input_str, today.year), '%m/%d/%Y')
 
-    def get_statewide_cases_timeseries(self, soup):
+    def get_statewide_cases_timeseries(self, soup, update_date):
         '''How to deal with back-dated statewide totals if they use sample dates'''
         print('Parsing statewide cases timeseries...')
         cases_timeseries = self.full_table_parser(soup, 'Specimen collection date') # Fragile
@@ -213,13 +213,14 @@ class Command(BaseCommand):
                     sample_date=sample_date,
                     new_cases=self.parse_comma_int(new_cases),
                     total_cases=self.parse_comma_int(c['Cumulative positive cases']),
+                    update_date=update_date,
                     scrape_date=today,
                 )
                 case_objs.append(co)
             print('Adding {} records of case timeseries data'.format(len(case_objs)))
             StatewideCasesBySampleDate.objects.bulk_create(case_objs)
 
-    def get_statewide_tests_timeseries(self, soup):
+    def get_statewide_tests_timeseries(self, soup, update_date):
         print('Parsing statewide tests timeseries...')
         tests_timeseries = self.full_table_parser(soup, 'Completed tests reported from external laboratories (daily)') # Fragile
         # print(tests_timeseries)
@@ -242,6 +243,7 @@ class Command(BaseCommand):
                     new_state_tests=self.parse_comma_int(c['Completed tests reported from the MDH Public Health Lab (daily)']),
                     new_external_tests=self.parse_comma_int(c['Completed tests reported from external laboratories (daily)']),
                     total_tests=self.parse_comma_int(c['Total approximate number of completed tests ']),
+                    update_date=update_date,
                     scrape_date=today,
                 )
                 test_objs.append(std)
@@ -275,13 +277,13 @@ class Command(BaseCommand):
         #     if cumulative_positive_tests_match:
         #         output['cumulative_positive_tests'] = cumulative_positive_tests_match
 
-        new_cases_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported cases')).find_parent('td').find('strong').text)
-        print(new_cases_match)
-        if new_cases_match:
-            output['new_cases'] = new_cases_match
+        newly_reported_cases_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported cases')).find_parent('td').find('strong').text)
+        print(newly_reported_cases_match)
+        if newly_reported_cases_match:
+            output['cases_newly_reported'] = newly_reported_cases_match
 
         new_deaths_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported deaths')).find_parent('td').find('strong').text)
-        print(new_deaths_match)
+        # print(new_deaths_match)
         if new_deaths_match:
             output['new_deaths'] = new_deaths_match
 
@@ -293,12 +295,14 @@ class Command(BaseCommand):
         for ul in uls:
             cumulative_positive_tests_match = self.ul_regex('Total positive', ul.text)
             if cumulative_positive_tests_match:
+                print(cumulative_positive_tests_match)
                 output['cumulative_positive_tests'] = cumulative_positive_tests_match
 
             daily_cases_removed_match = self.ul_regex('Cases removed\*', ul.text)
-            print(daily_cases_removed_match)
-            if daily_cases_removed_match:
+            if daily_cases_removed_match >= 0:
                 output['removed_cases'] = daily_cases_removed_match
+            else:
+                output['removed_cases'] = None
 
             cumulative_completed_mdh_match = self.ul_regex('Total approximate number of completed tests from the MDH Public Health Lab', ul.text)
             if cumulative_completed_mdh_match:
@@ -478,8 +482,8 @@ class Command(BaseCommand):
         ages_data = self.full_table_parser(soup, 'Age Group')
         cleaned_ages_data = []
         for d in ages_data:
-            d['Number of Cases'] = self.pct_filter(d['Number of Cases'])
-            d['Number of Deaths'] = self.pct_filter(d['Number of Deaths'])
+            d['Number of Cases'] = self.parse_comma_int(d['Number of Cases'])
+            d['Number of Deaths'] = self.parse_comma_int(d['Number of Deaths'])
             cleaned_ages_data.append(d)
         return cleaned_ages_data
 
@@ -503,22 +507,25 @@ class Command(BaseCommand):
             current_observation.save()
 
 
-    def update_statewide_records(self, statewide_data):
+    def update_statewide_records(self, statewide_data, update_date):
         previous_statewide_results = StatewideTotalDate.objects.all().order_by('-scrape_date').first()
 
         today = datetime.date.today()
         total_statewide_tests = statewide_data['cumulative_completed_mdh'] + statewide_data['cumulative_completed_private']
+        cases_daily_change = statewide_data['cumulative_positive_tests'] - previous_statewide_results.cumulative_positive_tests
         try:
             current_statewide_observation = StatewideTotalDate.objects.get(
                 scrape_date=today
             )
             print('Updating existing statewide for {}'.format(today))
 
+            current_statewide_observation.cumulative_positive_tests = statewide_data['cumulative_positive_tests']
+            current_statewide_observation.cases_daily_change = cases_daily_change
+            current_statewide_observation.cases_newly_reported = statewide_data['cases_newly_reported']
             current_statewide_observation.removed_cases = statewide_data['removed_cases']
-            current_statewide_observation.new_cases = statewide_data['new_cases']
+
             current_statewide_observation.new_deaths = statewide_data['new_deaths']
 
-            current_statewide_observation.cumulative_positive_tests = statewide_data['cumulative_positive_tests']
             current_statewide_observation.cumulative_completed_tests = total_statewide_tests
             current_statewide_observation.cumulative_completed_mdh = statewide_data['cumulative_completed_mdh']
             current_statewide_observation.cumulative_completed_private = statewide_data['cumulative_completed_private']
@@ -528,16 +535,20 @@ class Command(BaseCommand):
             current_statewide_observation.cumulative_statewide_deaths = statewide_data['cumulative_statewide_deaths']
             current_statewide_observation.cumulative_statewide_recoveries = statewide_data['cumulative_statewide_recoveries']
 
+            current_statewide_observation.update_date=update_date
+
             current_statewide_observation.save()
         except ObjectDoesNotExist:
             try:
                 print('Creating 1st statewide record for {}'.format(today))
                 current_statewide_observation = StatewideTotalDate(
-                    removed_cases=statewide_data['removed_cases'],
-                    new_cases=statewide_data['new_cases'],
-                    new_deaths=statewide_data['new_deaths'],
-
                     cumulative_positive_tests=statewide_data['cumulative_positive_tests'],
+                    cases_daily_change=cases_daily_change,
+                    cases_newly_reported=statewide_data['cases_newly_reported'],
+                    removed_cases=statewide_data['removed_cases'],
+                    # new_cases=statewide_data['new_cases'],
+                    new_deaths=statewide_data['new_deaths'],
+                    # cumulative_positive_tests=statewide_data['cumulative_positive_tests'],
                     cumulative_completed_tests=total_statewide_tests,
                     cumulative_completed_mdh=statewide_data['cumulative_completed_mdh'],
                     cumulative_completed_private=statewide_data['cumulative_completed_private'],
@@ -547,6 +558,7 @@ class Command(BaseCommand):
                     cumulative_statewide_deaths=statewide_data['cumulative_statewide_deaths'],
                     cumulative_statewide_recoveries=statewide_data['cumulative_statewide_recoveries'],
 
+                    update_date=update_date,
                     scrape_date=today,
                 )
                 current_statewide_observation.save()
@@ -555,34 +567,34 @@ class Command(BaseCommand):
                 raise
 
         msg_output = ''
-        if (previous_statewide_results.cumulative_positive_tests != current_statewide_observation.cumulative_positive_tests):
-            new_cases = current_statewide_observation.cumulative_positive_tests - previous_statewide_results.cumulative_positive_tests
-            new_deaths = current_statewide_observation.cumulative_statewide_deaths - previous_statewide_results.cumulative_statewide_deaths
-            hospitalizations_change = current_statewide_observation.currently_hospitalized - previous_statewide_results.currently_hospitalized
-            icu_change = current_statewide_observation.currently_in_icu - previous_statewide_results.currently_in_icu
-            new_tests = current_statewide_observation.cumulative_completed_tests - previous_statewide_results.cumulative_completed_tests
+        # if (cases_daily_change != 0):
+        new_deaths = current_statewide_observation.cumulative_statewide_deaths - previous_statewide_results.cumulative_statewide_deaths
+        hospitalizations_change = current_statewide_observation.currently_hospitalized - previous_statewide_results.currently_hospitalized
+        icu_change = current_statewide_observation.currently_in_icu - previous_statewide_results.currently_in_icu
+        new_tests = current_statewide_observation.cumulative_completed_tests - previous_statewide_results.cumulative_completed_tests
 
-            print('Change found, composing statewide Slack message...')
-            msg_output += '*{}* deaths total (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_statewide_deaths:,}', self.change_sign(new_deaths))
-            msg_output += '*{}* cases total (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_positive_tests:,}', self.change_sign(new_cases))
-            msg_output += '*{}* currently hospitalized (*{}* today)\n'.format(f'{current_statewide_observation.currently_hospitalized:,}', self.change_sign(hospitalizations_change))
-            msg_output += '*{}* currently in ICU (*{}* today)\n'.format(f'{current_statewide_observation.currently_in_icu:,}', self.change_sign(icu_change))
-            msg_output += '*{}* total tests completed (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_completed_tests:,}', self.change_sign(new_tests))
+        print('Change found, composing statewide Slack message...')
+        msg_output += '*{}* deaths total (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_statewide_deaths:,}', self.change_sign(new_deaths))
+        msg_output += '*{}* cases total (change of *{}* today, *{}* newly reported, *{}* removed)\n'.format(f'{current_statewide_observation.cumulative_positive_tests:,}', self.change_sign(cases_daily_change), f'{current_statewide_observation.cases_newly_reported:,}', f'{current_statewide_observation.cases_removed:,}')
+        msg_output += '*{}* currently hospitalized (*{}* today)\n'.format(f'{current_statewide_observation.currently_hospitalized:,}', self.change_sign(hospitalizations_change))
+        msg_output += '*{}* currently in ICU (*{}* today)\n'.format(f'{current_statewide_observation.currently_in_icu:,}', self.change_sign(icu_change))
+        msg_output += '*{}* total tests completed (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_completed_tests:,}', self.change_sign(new_tests))
 
-            final_msg = 'COVID scraper found updated data on the <https://www.health.state.mn.us/diseases/coronavirus/situation.html|MDH situation page>...\n\n' + msg_output + '\n'
-            print(final_msg)
+        final_msg = 'COVID scraper found updated data on the <https://www.health.state.mn.us/diseases/coronavirus/situation.html|MDH situation page>...\n\n' + msg_output + '\n'
+        print(final_msg)
 
-            return final_msg
+        return final_msg
 
-        return 'COVID scraper: No updates found in statewide numbers.\n\n'
+        # return 'COVID scraper: No updates found in statewide numbers.\n\n'
 
     def updated_today(self, soup):
-        update_date_node = soup.find("strong", text=re.compile('Updated [A-z]+ \d{1,2}, \d{4}.')).text
-        update_date = datetime.datetime.strptime(re.search('([A-z]+ \d{1,2}, \d{4})', update_date_node).group(1), '%B %d, %Y')
-        if update_date.date() == datetime.datetime.now().date():
-            return True
+        update_date_node = soup.find("strong", text=re.compile('Updated [A-z]+ \d{1,2}, \d{4}')).text
+
+        update_date = datetime.datetime.strptime(re.search('([A-z]+ \d{1,2}, \d{4})', update_date_node).group(1), '%B %d, %Y').date()
+        if update_date == datetime.datetime.now().date():
+            return True, update_date
         else:
-            return False
+            return False, update_date
 
     def handle(self, *args, **options):
         html = self.get_page_content()
@@ -600,17 +612,18 @@ class Command(BaseCommand):
             soup = BeautifulSoup(html, 'html.parser')
 
             # Will make this more important after we're sure it works
-            bool_updated_today = self.updated_today(soup)
+            bool_updated_today, update_date = self.updated_today(soup)
+            print(update_date)
             if bool_updated_today:
                 print('Updated today')
             else:
                 print('No update yet today')
 
             statewide_data = self.get_statewide_data(soup)
-            statewide_msg_output = self.update_statewide_records(statewide_data)
+            statewide_msg_output = self.update_statewide_records(statewide_data, update_date)
 
-            self.get_statewide_cases_timeseries(soup)
-            self.get_statewide_tests_timeseries(soup)
+            self.get_statewide_cases_timeseries(soup, update_date)
+            self.get_statewide_tests_timeseries(soup, update_date)
 
             age_data = self.get_age_data(soup)
             # print(age_data)
@@ -637,5 +650,6 @@ class Command(BaseCommand):
             else:
                 # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')
                 # slack_latest('Scraper update: No county changes detected.', '#covid-tracking')
-                # slack_latest(statewide_msg_output + county_msg_output, '#virus')  # Force output anyway
+                # slack_latest(statewide_msg_output, '#robot-dojo')  # Force output anyway
+                # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')  # Force output anyway
                 slack_latest('COVID scraper update: No changes detected.', '#robot-dojo')

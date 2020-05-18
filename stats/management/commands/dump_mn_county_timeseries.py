@@ -55,7 +55,7 @@ class Command(BaseCommand):
         # print(start_date)
         records_by_county = []
         for c in County.objects.all().order_by('name'):
-            records = CountyTestDate.objects.filter(county=c).values('scrape_date', 'county__name', 'daily_count', 'cumulative_count', 'daily_deaths', 'cumulative_deaths')
+            records = CountyTestDate.objects.filter(county=c).values('scrape_date', 'update_date', 'county__name', 'daily_count', 'cumulative_count', 'daily_deaths', 'cumulative_deaths')
             county_running_total = 0
             # print(records)
             for d in dates:
@@ -66,8 +66,10 @@ class Command(BaseCommand):
                         county_date_record = [r for r in records if r['scrape_date'] == d][0]
                         county_running_total = county_date_record['cumulative_count']
                     except:
+                        # print('missing date', county_running_total, d)
                         county_date_record = {
                             'scrape_date': d,
+                            'update_date': d,
                             'county__name': c.name,
                             'daily_count': 0,
                             'cumulative_count': county_running_total,
@@ -80,6 +82,7 @@ class Command(BaseCommand):
         fieldnames = ['date', 'county', 'daily_cases', 'cumulative_cases', 'daily_deaths', 'cumulative_deaths']
         rows = []
         for r in records_by_county:
+            # if not r['update_date'] or r['update_date'] <= datetime.date.today():
             row = {
                 'date': r['scrape_date'].strftime('%Y-%m-%d'),
                 'county': r['county__name'],
@@ -103,6 +106,7 @@ class Command(BaseCommand):
 
         for c in CountyTestDate.objects.all().values(
             'scrape_date',
+            'update_date',
             'county__name',
             'daily_count',
             'cumulative_count',
@@ -110,10 +114,11 @@ class Command(BaseCommand):
             'cumulative_deaths',
         ).order_by('scrape_date', 'county__name'):
             # print(c)
-            if c['scrape_date'] == datetime.date.today() and self.today_statewide_cases == 0:
-                pass  # Ignore if there's no new results for today
-            else:
-                # print(c.scrape_date, c.county.name, c.cumulative_count)
+            # if not c['update_date'] or c['update_date'] <= datetime.date.today():
+            if c['scrape_date'] < datetime.date.today() or c['update_date'] == datetime.date.today():
+            #     pass  # Ignore if there's no new results for today
+            # else:
+            #     # print(c.scrape_date, c.county.name, c.cumulative_count)
                 row = {
                     'date': c['scrape_date'].strftime('%Y-%m-%d'),
                     'county': c['county__name'],

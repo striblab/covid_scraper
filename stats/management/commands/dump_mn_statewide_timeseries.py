@@ -50,58 +50,62 @@ class Command(BaseCommand):
             previous_total_tests = 0
             # Go through all dates and check for either timeseries or, failing that, topline data
             while current_date <= max_date:
+
                 # print(current_date)
                 topline_data = topline_timeseries_values[current_date]
+                print(current_date, topline_data['update_date'])
+                if current_date < datetime.date.today() or topline_data['update_date'] == datetime.date.today():
+                    # Don't output today if an update hasn't run yet today
 
-                if topline_data['new_deaths'] == 0:
-                    new_deaths = topline_data['cumulative_statewide_deaths'] - previous_total_deaths
-                else:
-                    new_deaths = topline_data['new_deaths']
-                previous_total_deaths = topline_data['cumulative_statewide_deaths']
+                    if topline_data['new_deaths'] == 0:
+                        new_deaths = topline_data['cumulative_statewide_deaths'] - previous_total_deaths
+                    else:
+                        new_deaths = topline_data['new_deaths']
+                    previous_total_deaths = topline_data['cumulative_statewide_deaths']
 
-                if current_date in cases_timeseries_values:
-                    # print('timeseries')
-                    cr = cases_timeseries_values[current_date]
-                    new_cases = cr['new_cases']
-                    total_cases = cr['total_cases']
-                    previous_total_cases = total_cases
-                else:
-                    # This will usually just be today's values because no samples have come back yet
-                    new_cases = 0
-                    # removed_cases = topline_data['removed_cases']
-                    total_cases = topline_data['cumulative_positive_tests']
+                    if current_date in cases_timeseries_values:
+                        # print('timeseries')
+                        cr = cases_timeseries_values[current_date]
+                        new_cases = cr['new_cases']
+                        total_cases = cr['total_cases']
+                        previous_total_cases = total_cases
+                    else:
+                        # This will usually just be today's values because no samples have come back yet
+                        new_cases = 0
+                        # removed_cases = topline_data['removed_cases']
+                        total_cases = topline_data['cumulative_positive_tests']
 
-                if current_date - timedelta(days=1) in tests_timeseries_values:
-                    tr = tests_timeseries_values[current_date - timedelta(days=1)]
-                    new_tests = tr['new_state_tests'] + tr['new_external_tests']
-                    total_tests = tr['total_tests']
-                    # print('using shifted mdh timeseries')
-                elif current_date in topline_timeseries_values:
-                    tr = topline_timeseries_values[current_date]
+                    if current_date - timedelta(days=1) in tests_timeseries_values:
+                        tr = tests_timeseries_values[current_date - timedelta(days=1)]
+                        new_tests = tr['new_state_tests'] + tr['new_external_tests']
+                        total_tests = tr['total_tests']
+                        # print('using shifted mdh timeseries')
+                    elif current_date in topline_timeseries_values:
+                        tr = topline_timeseries_values[current_date]
 
-                    new_tests = tr['cumulative_completed_tests'] - previous_total_tests
-                    total_tests = tr['cumulative_completed_tests']
+                        new_tests = tr['cumulative_completed_tests'] - previous_total_tests
+                        total_tests = tr['cumulative_completed_tests']
 
-                else:
-                    new_tests = 0
-                    total_tests = previous_total_tests
+                    else:
+                        new_tests = 0
+                        total_tests = previous_total_tests
 
-                previous_total_tests = total_tests
+                    previous_total_tests = total_tests
 
-                row = {
-                    'date': current_date.strftime('%Y-%m-%d'),
-                    'total_positive_tests': total_cases,
-                    'new_positive_tests': new_cases,
-                    'removed_cases': topline_data['removed_cases'],
-                    'total_hospitalized': topline_data['cumulative_hospitalized'],
-                    'currently_hospitalized': topline_data['currently_hospitalized'],
-                    'currently_in_icu': topline_data['currently_in_icu'],
-                    'total_statewide_deaths': topline_data['cumulative_statewide_deaths'],
-                    'new_statewide_deaths': new_deaths,
-                    'total_statewide_recoveries': topline_data['cumulative_statewide_recoveries'],
-                    'total_completed_tests': total_tests,
-                    'new_completed_tests': new_tests,
-                }
-                writer.writerow(row)
+                    row = {
+                        'date': current_date.strftime('%Y-%m-%d'),
+                        'total_positive_tests': total_cases,
+                        'new_positive_tests': new_cases,
+                        'removed_cases': topline_data['removed_cases'],
+                        'total_hospitalized': topline_data['cumulative_hospitalized'],
+                        'currently_hospitalized': topline_data['currently_hospitalized'],
+                        'currently_in_icu': topline_data['currently_in_icu'],
+                        'total_statewide_deaths': topline_data['cumulative_statewide_deaths'],
+                        'new_statewide_deaths': new_deaths,
+                        'total_statewide_recoveries': topline_data['cumulative_statewide_recoveries'],
+                        'total_completed_tests': total_tests,
+                        'new_completed_tests': new_tests,
+                    }
+                    writer.writerow(row)
 
                 current_date += timedelta(days=1)

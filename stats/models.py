@@ -44,6 +44,7 @@ class StatewideCasesBySampleDate(models.Model):
     sample_date = models.DateField(null=True)
     new_cases = models.IntegerField(default=0)
     total_cases = models.IntegerField(default=0)
+    update_date = models.DateField(null=True)  # The day MDH said this data was last updated
     scrape_date = models.DateField()
 
 
@@ -53,13 +54,19 @@ class StatewideTestsDate(models.Model):
     new_state_tests = models.IntegerField(default=0)
     new_external_tests = models.IntegerField(default=0)
     total_tests = models.IntegerField(default=0)
+    update_date = models.DateField(null=True)  # The day MDH said this data was last updated
     scrape_date = models.DateField()
 
 
 class StatewideTotalDate(models.Model):
     '''used for topline numbers'''
-    removed_cases = models.IntegerField(default=0, null=True)
-    new_cases = models.IntegerField(default=0, null=True)
+    cases_daily_change = models.IntegerField(default=0, null=True)  # Difference between total yesterday and today
+    cases_newly_reported  = models.IntegerField(default=0, null=True)  # "new" cases per MDH, should add up to daily change when combined with cases_removed
+    cases_removed = models.IntegerField(default=0, null=True)  # MDH removals
+    # cases_sample_date <- Data from time series, which will lag by several days
+
+    removed_cases = models.IntegerField(default=0, null=True)  # to deprecate
+    # new_cases = models.IntegerField(default=0, null=True)  # to deprecate
     new_deaths = models.IntegerField(default=0, null=True)
 
     cumulative_positive_tests = models.IntegerField(default=0)
@@ -74,6 +81,8 @@ class StatewideTotalDate(models.Model):
     cumulative_statewide_deaths = models.IntegerField(default=0)  # Captured separately from county totals, so they may not match
     cumulative_statewide_recoveries = models.IntegerField(default=0)
 
+    update_date = models.DateField(null=True)  # The day MDH said this data was last updated
+
     scrape_date = models.DateField()
     last_update = models.DateTimeField(auto_now=True)
 
@@ -85,8 +94,10 @@ class CountyTestDate(models.Model):
     cumulative_count = models.IntegerField()
     daily_deaths = models.IntegerField(default=0)  # Deaths on this date
     cumulative_deaths = models.IntegerField(default=0)  # Deaths by this date
+    update_date = models.DateField(null=True)  # The day MDH said this data was last updated
     scrape_date = models.DateField()
-    last_update = models.DateTimeField(auto_now=True)
+
+    last_scrape = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return '{} {}: {}'.format(self.county.name, self.scrape_date, self.daily_count)

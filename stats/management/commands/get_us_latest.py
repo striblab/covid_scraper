@@ -29,10 +29,14 @@ class Command(BaseCommand):
                 'last_update': last_update
             }
 
-            with open(self.US_LATEST_EXPORT_PATH, 'w') as jsonfile:
-                jsonfile.write(json.dumps(out_dict))
-
             print(out_dict)
+
+            # Test that you get an actual integer before overwriting
+            out_int = int(out_dict['death_total'].replace(',', ''))
+            if out_int > 0:
+                print('Output looks normal, Updating U.S. latest file')
+                with open(self.US_LATEST_EXPORT_PATH, 'w') as jsonfile:
+                    jsonfile.write(json.dumps(out_dict))
 
         else:
             return False
