@@ -3,6 +3,7 @@ import os
 import csv
 import requests
 import datetime
+from datetime import timedelta
 import codecs
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
@@ -50,7 +51,7 @@ class Command(BaseCommand):
 
         return county_data
 
-    def update_county_records(self, county_data):
+    def update_county_records(self, county_data, update_date):
         msg_output = ''
 
         today = datetime.date.today()
@@ -78,6 +79,7 @@ class Command(BaseCommand):
                     scrape_date=today
                 )
                 print('Updating {} County: {}'.format(observation[0], observation[1]))
+                county_observation.update_date = update_date
                 county_observation.daily_count = daily_cases
                 county_observation.cumulative_count = self.parse_comma_int(observation[1])
                 county_observation.daily_deaths = daily_deaths
@@ -90,6 +92,7 @@ class Command(BaseCommand):
                     county_observation = CountyTestDate(
                         county=County.objects.get(name__iexact=observation[0].strip()),
                         scrape_date=today,
+                        update_date=update_date,
                         daily_count=daily_cases,
                         cumulative_count=self.parse_comma_int(observation[1]),
                         daily_deaths=daily_deaths,
@@ -282,10 +285,10 @@ class Command(BaseCommand):
         if newly_reported_cases_match:
             output['cases_newly_reported'] = newly_reported_cases_match
 
-        new_deaths_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported deaths')).find_parent('td').find('strong').text)
-        # print(new_deaths_match)
-        if new_deaths_match:
-            output['new_deaths'] = new_deaths_match
+        # new_deaths_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported deaths')).find_parent('td').find('strong').text)
+        # # print(new_deaths_match)
+        # if new_deaths_match:
+        #     output['new_deaths'] = new_deaths_match
 
         # daily_cases_removed_match = self.ul_regex('Cases removed', ul.text)
         # if daily_cases_removed_match:
@@ -299,10 +302,11 @@ class Command(BaseCommand):
                 output['cumulative_positive_tests'] = cumulative_positive_tests_match
 
             daily_cases_removed_match = self.ul_regex('Cases removed\*', ul.text)
-            if daily_cases_removed_match >= 0:
+            if daily_cases_removed_match is not False:
                 output['removed_cases'] = daily_cases_removed_match
-            else:
-                output['removed_cases'] = None
+                print('cases removed', daily_cases_removed_match)
+            # else:
+            #     output['removed_cases'] = None
 
             cumulative_completed_mdh_match = self.ul_regex('Total approximate number of completed tests from the MDH Public Health Lab', ul.text)
             if cumulative_completed_mdh_match:
@@ -374,58 +378,44 @@ class Command(BaseCommand):
             cleaned_data.append(clean_row)
         return cleaned_data
 
-    def get_existing_recent_deaths_records(self):
-        ''' See if you already have any deaths from today'''
-        today = datetime.date.today()
-        max_death_date = Death.objects.all().aggregate(Max('scrape_date'))['scrape_date__max']
-        if max_death_date != today:
-            bool_yesterday = True
-        else:
-            bool_yesterday = False
+    # def get_existing_recent_deaths_records(self):
+    #     ''' See if you already have any deaths from today'''
+    #     today = datetime.date.today()
+    #     max_death_date = Death.objects.all().aggregate(Max('scrape_date'))['scrape_date__max']
+    #     if max_death_date != today:
+    #         bool_yesterday = True
+    #     else:
+    #         bool_yesterday = False
+    #
+    #     most_recent_deaths = Death.objects.filter(scrape_date=max_death_date).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
+    #     print(most_recent_deaths, bool_yesterday)
+    #     return most_recent_deaths, bool_yesterday
+    #     # if max_death_date == today:
+    #     #     # There is already data for today, compare to that
+    #     # print(max_death_date)
+    #     #     today_deaths = Death.objects.filter(scrape_date=today).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
+    #     #     return today_deaths
+    #     # else:
+    #     #     # There isn't data yet for today, so compare to existing max day
+    #     # if today_deaths.count() > 0:
+    #     #     # TODO: Are these the same as yesterday's? (I.E. has the daily update not happened yet)
+    #     #
+    #     #     return today_deaths
+    #     #
+    #     #
+    #     # return None
 
-        most_recent_deaths = Death.objects.filter(scrape_date=max_death_date).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
-        print(most_recent_deaths, bool_yesterday)
-        return most_recent_deaths, bool_yesterday
-        # if max_death_date == today:
-        #     # There is already data for today, compare to that
-        # print(max_death_date)
-        #     today_deaths = Death.objects.filter(scrape_date=today).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
-        #     return today_deaths
-        # else:
-        #     # There isn't data yet for today, so compare to existing max day
-        # if today_deaths.count() > 0:
-        #     # TODO: Are these the same as yesterday's? (I.E. has the daily update not happened yet)
-        #
-        #     return today_deaths
-        #
-        #
-        # return None
+    def load_recent_deaths(self, scraped_deaths):
+        existing_deaths = Death.objects.filter(scrape_date=datetime.date.today()).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
 
-    def reconcile_load_recent_deaths(self, scraped_deaths, existing_deaths, bool_yesterday):
-        # print([{i:d[i] for i in d if i != 'scrape_date'} for d in scraped_deaths])
-        if bool_yesterday:
-            print('Last data is from yesterday')
-            # TODO: Date is different, that is why you fail
+        date_stripped_scraped = [{i:d[i] for i in d if i != 'scrape_date'} for d in scraped_deaths]
+        date_stripped_existing = [{i:d[i] for i in d if i != 'scrape_date'} for d in existing_deaths]
 
-            # date_stripped_scraped = [{'county__name': i['county__name'], 'age_group': i['age_group'], 'count': i['count']} for i in scraped_deaths]
-            date_stripped_scraped = [{i:d[i] for i in d if i != 'scrape_date'} for d in scraped_deaths]
-            date_stripped_existing = [{i:d[i] for i in d if i != 'scrape_date'} for d in existing_deaths]
-            print(date_stripped_scraped)
-            print(date_stripped_existing)
+        bool_changes = [i for i in date_stripped_scraped if i not in date_stripped_existing] != []
+        print(bool_changes)
 
-            bool_changes = [i for i in date_stripped_scraped if i not in date_stripped_existing] != []
-            print(bool_changes)
+        if bool_changes:
 
-
-            if bool_changes:
-                print('New data for today...')
-                existing_deaths = None  # Ignore old data
-            else:
-                print('No changes from yesterday yet.')
-                return False
-
-        # Looking for updates from today
-        if existing_deaths:
             deaths_to_add = []
             deaths_to_remove = []
             for sd in scraped_deaths:
@@ -447,8 +437,8 @@ class Command(BaseCommand):
                         sd['scrape_date'] = similar[0]['scrape_date']  # If you're going to remove, make sure it's from the max_date, not necessarily today
                         deaths_to_remove.append(sd)
 
+            print(deaths_to_add, deaths_to_remove)
             # Removing records
-            extra_deaths = []
             for group in deaths_to_remove:
                 remove_count = group['count']
                 county = County.objects.get(name=group['county__name'])
@@ -456,25 +446,20 @@ class Command(BaseCommand):
                     Death.objects.filter(scrape_date=group['scrape_date'], age_group=group['age_group'], county=county).last().delete()
                     remove_count += 1
 
-        else:  # This should happen on first run of the day with changes
-            print('Starting fresh...')
-            deaths_to_add = scraped_deaths
-
-        # Adding records
-        new_deaths = []
-        for group in deaths_to_add:
-            add_count = group['count']
-            county = County.objects.get(name=group['county__name'])
-            while add_count > 0:
-                death = Death(
-                    scrape_date=group['scrape_date'],
-                    age_group=group['age_group'],
-                    county=county,
-                )
-                new_deaths.append(death)
-                add_count -= 1
-        Death.objects.bulk_create(new_deaths)
-
+            # Adding records
+            new_deaths = []
+            for group in deaths_to_add:
+                add_count = group['count']
+                county = County.objects.get(name=group['county__name'])
+                while add_count > 0:
+                    death = Death(
+                        scrape_date=group['scrape_date'],
+                        age_group=group['age_group'],
+                        county=county,
+                    )
+                    new_deaths.append(death)
+                    add_count -= 1
+            Death.objects.bulk_create(new_deaths)
 
     def get_age_data(self, soup):
         # soup = BeautifulSoup(html, 'html.parser')
@@ -508,23 +493,27 @@ class Command(BaseCommand):
 
 
     def update_statewide_records(self, statewide_data, update_date):
-        previous_statewide_results = StatewideTotalDate.objects.all().order_by('-scrape_date').first()
+        yesterday = update_date - timedelta(days=1)
+        yesterday_results = StatewideTotalDate.objects.get(scrape_date=yesterday)
+        # previous_statewide_results = StatewideTotalDate.objects.all().order_by('-scrape_date').first()
 
         today = datetime.date.today()
         total_statewide_tests = statewide_data['cumulative_completed_mdh'] + statewide_data['cumulative_completed_private']
-        cases_daily_change = statewide_data['cumulative_positive_tests'] - previous_statewide_results.cumulative_positive_tests
+        cases_daily_change = statewide_data['cumulative_positive_tests'] - yesterday_results.cumulative_positive_tests
+        deaths_daily_change = statewide_data['cumulative_statewide_deaths'] - yesterday_results.cumulative_statewide_deaths
         try:
             current_statewide_observation = StatewideTotalDate.objects.get(
                 scrape_date=today
             )
             print('Updating existing statewide for {}'.format(today))
+            print(statewide_data['removed_cases'])
 
             current_statewide_observation.cumulative_positive_tests = statewide_data['cumulative_positive_tests']
             current_statewide_observation.cases_daily_change = cases_daily_change
             current_statewide_observation.cases_newly_reported = statewide_data['cases_newly_reported']
             current_statewide_observation.removed_cases = statewide_data['removed_cases']
 
-            current_statewide_observation.new_deaths = statewide_data['new_deaths']
+            current_statewide_observation.new_deaths = deaths_daily_change
 
             current_statewide_observation.cumulative_completed_tests = total_statewide_tests
             current_statewide_observation.cumulative_completed_mdh = statewide_data['cumulative_completed_mdh']
@@ -547,7 +536,7 @@ class Command(BaseCommand):
                     cases_newly_reported=statewide_data['cases_newly_reported'],
                     removed_cases=statewide_data['removed_cases'],
                     # new_cases=statewide_data['new_cases'],
-                    new_deaths=statewide_data['new_deaths'],
+                    new_deaths=deaths_daily_change,
                     # cumulative_positive_tests=statewide_data['cumulative_positive_tests'],
                     cumulative_completed_tests=total_statewide_tests,
                     cumulative_completed_mdh=statewide_data['cumulative_completed_mdh'],
@@ -568,14 +557,14 @@ class Command(BaseCommand):
 
         msg_output = ''
         # if (cases_daily_change != 0):
-        new_deaths = current_statewide_observation.cumulative_statewide_deaths - previous_statewide_results.cumulative_statewide_deaths
-        hospitalizations_change = current_statewide_observation.currently_hospitalized - previous_statewide_results.currently_hospitalized
-        icu_change = current_statewide_observation.currently_in_icu - previous_statewide_results.currently_in_icu
-        new_tests = current_statewide_observation.cumulative_completed_tests - previous_statewide_results.cumulative_completed_tests
+        # new_deaths = current_statewide_observation.cumulative_statewide_deaths - previous_statewide_results.cumulative_statewide_deaths
+        hospitalizations_change = current_statewide_observation.currently_hospitalized - yesterday_results.currently_hospitalized
+        icu_change = current_statewide_observation.currently_in_icu - yesterday_results.currently_in_icu
+        new_tests = current_statewide_observation.cumulative_completed_tests - yesterday_results.cumulative_completed_tests
 
         print('Change found, composing statewide Slack message...')
-        msg_output += '*{}* deaths total (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_statewide_deaths:,}', self.change_sign(new_deaths))
-        msg_output += '*{}* cases total (change of *{}* today, *{}* newly reported, *{}* removed)\n'.format(f'{current_statewide_observation.cumulative_positive_tests:,}', self.change_sign(cases_daily_change), f'{current_statewide_observation.cases_newly_reported:,}', f'{current_statewide_observation.cases_removed:,}')
+        msg_output += '*{}* deaths total (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_statewide_deaths:,}', self.change_sign(deaths_daily_change))
+        msg_output += '*{}* cases total (change of *{}* today, *{}* newly reported, *{}* removed)\n'.format(f'{current_statewide_observation.cumulative_positive_tests:,}', self.change_sign(cases_daily_change), f'{current_statewide_observation.cases_newly_reported:,}', f'{current_statewide_observation.removed_cases:,}')
         msg_output += '*{}* currently hospitalized (*{}* today)\n'.format(f'{current_statewide_observation.currently_hospitalized:,}', self.change_sign(hospitalizations_change))
         msg_output += '*{}* currently in ICU (*{}* today)\n'.format(f'{current_statewide_observation.currently_in_icu:,}', self.change_sign(icu_change))
         msg_output += '*{}* total tests completed (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_completed_tests:,}', self.change_sign(new_tests))
@@ -629,20 +618,22 @@ class Command(BaseCommand):
             # print(age_data)
             age_msg_output = self.update_age_records(age_data)
 
-            # recent_deaths_data = self.get_recent_deaths_data(soup)
-            # print(recent_deaths_data)
-            #
-            # existing_today_deaths, bool_yesterday = self.get_existing_recent_deaths_records()
-            # print(existing_today_deaths, bool_yesterday)
-            # death_msg_output = self.reconcile_load_recent_deaths(recent_deaths_data, existing_today_deaths, bool_yesterday)
+            if bool_updated_today:
+
+                recent_deaths_data = self.get_recent_deaths_data(soup)
+                print(recent_deaths_data)
+
+                # existing_today_deaths, bool_yesterday = self.get_existing_recent_deaths_records()
+                # print(existing_today_deaths, bool_yesterday)
+                death_msg_output = self.load_recent_deaths(recent_deaths_data)
 
             county_data = self.get_county_data(soup)
-            county_msg_output = self.update_county_records(county_data)
+            county_msg_output = self.update_county_records(county_data, update_date)
             # county_msg_output = "Leaving county counts at yesterday's total until state clarifies"
 
             print(statewide_data['cumulative_positive_tests'], previous_statewide_cases)
             if statewide_data['cumulative_positive_tests'] != previous_statewide_cases:
-                new_statewide_cases = statewide_data['cumulative_positive_tests'] - previous_statewide_cases
+                # new_statewide_cases = statewide_data['cumulative_positive_tests'] - previous_statewide_cases
                 # slack_header = '*{} new cases announced statewide.*\n\n'.format(new_statewide_cases)
                 # slack_latest(statewide_msg_output, '#virus')
                 slack_latest(statewide_msg_output + county_msg_output, '#virus')

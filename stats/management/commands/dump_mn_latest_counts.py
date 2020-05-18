@@ -43,9 +43,12 @@ class Command(BaseCommand):
     def dump_state_latest(self):
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_latest.csv'), 'w') as csvfile:
             fieldnames = [
-                'total_positive_tests',
-                'daily_positive_tests',
-                'daily_removed_tests',
+                'total_confirmed_cases',
+                # 'daily_positive_tests',
+                # 'daily_removed_tests',
+                'cases_daily_change',
+                'daily_cases_newly_reported',
+                'daily_cases_removed',
                 'total_statewide_deaths',
                 'daily_statewide_deaths',
                 'total_statewide_recoveries',
@@ -63,9 +66,11 @@ class Command(BaseCommand):
 
             latest = StatewideTotalDate.objects.all().order_by('-last_update').first()
             writer.writerow({
-                'total_positive_tests': latest.cumulative_positive_tests,
-                'daily_positive_tests': latest.new_cases,
-                'daily_removed_tests': latest.removed_cases,
+                'total_confirmed_cases': latest.cumulative_positive_tests,
+                'cases_daily_change': latest.cases_daily_change,
+                'daily_cases_newly_reported': latest.cases_newly_reported,
+                # 'daily_positive_tests': latest.new_cases,
+                'daily_cases_removed': latest.removed_cases,
                 'total_statewide_deaths': latest.cumulative_statewide_deaths,
                 'daily_statewide_deaths': latest.new_deaths,
                 'total_statewide_recoveries': latest.cumulative_statewide_recoveries,

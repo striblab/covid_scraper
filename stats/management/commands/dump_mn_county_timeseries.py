@@ -113,7 +113,7 @@ class Command(BaseCommand):
             'daily_deaths',
             'cumulative_deaths',
         ).order_by('scrape_date', 'county__name'):
-            # print(c)
+            print(c['update_date'], datetime.date.today(), c['update_date'] == datetime.date.today())
             # if not c['update_date'] or c['update_date'] <= datetime.date.today():
             if c['scrape_date'] < datetime.date.today() or c['update_date'] == datetime.date.today():
             #     pass  # Ignore if there's no new results for today

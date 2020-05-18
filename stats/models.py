@@ -7,6 +7,7 @@ class County(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     pop_2010 = models.IntegerField()
+    pop_2019 = models.IntegerField(null=True)
 
     def __str__(self):
         return self.name
@@ -62,10 +63,10 @@ class StatewideTotalDate(models.Model):
     '''used for topline numbers'''
     cases_daily_change = models.IntegerField(default=0, null=True)  # Difference between total yesterday and today
     cases_newly_reported  = models.IntegerField(default=0, null=True)  # "new" cases per MDH, should add up to daily change when combined with cases_removed
-    cases_removed = models.IntegerField(default=0, null=True)  # MDH removals
+    # cases_removed = models.IntegerField(default=0, null=True)  # MDH removals
     # cases_sample_date <- Data from time series, which will lag by several days
 
-    removed_cases = models.IntegerField(default=0, null=True)  # to deprecate
+    removed_cases = models.IntegerField(default=0, null=True)
     # new_cases = models.IntegerField(default=0, null=True)  # to deprecate
     new_deaths = models.IntegerField(default=0, null=True)
 
