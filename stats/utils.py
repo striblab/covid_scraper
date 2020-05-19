@@ -1,3 +1,5 @@
+import re
+import datetime
 import json
 import math
 import requests
@@ -59,3 +61,48 @@ def slack_latest(text, channel):
         print('Slack error...')
         print(r.status_code)
         print(r.text)
+
+#### Things for reading cached HTML stored on S3 ####
+def get_matching_s3_cached_html(bucket, prefix, s3):
+    keys = []
+
+    kwargs = {
+        'Bucket': bucket,
+        'Prefix': '{}/html/situation'.format(prefix)
+    }
+    while True:
+        resp = s3.list_objects_v2(**kwargs)
+        for obj in resp['Contents']:
+            keys.append(obj['Key'])
+
+        try:
+            kwargs['ContinuationToken'] = resp['NextContinuationToken']
+        except KeyError:
+            break
+
+    return keys
+
+
+def find_filename_date_matchs(matching_files, hour, slice='first'):
+    file_regex = re.compile('(\d{4}-\d{2}-\d{2})_' + str(hour) + '\d{2}.html')
+    date_matches = [f for f in matching_files if re.search(file_regex, f)]
+    date_matches.sort()
+
+    date_matches_unique = {}
+    for d in date_matches:
+        parsed_date = re.search(file_regex, d)
+        scrape_date = datetime.datetime.strptime(parsed_date.group(1), '%Y-%m-%d').date()
+        if slice == 'first':
+            if scrape_date not in date_matches_unique.keys():
+                date_matches_unique[scrape_date] = d
+        elif slice == 'last':  # Keep overwriting until you get to the last one
+            date_matches_unique[scrape_date] = d
+
+    listified_dict = [{'scrape_date': k, 'key': v} for k, v in date_matches_unique.items()]
+
+    return listified_dict
+
+
+def get_s3_file_contents(key, bucket, s3):
+    response = s3.get_object(Bucket=bucket, Key=key['key'])
+    return response['Body'].read()

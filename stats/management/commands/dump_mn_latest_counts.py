@@ -174,7 +174,7 @@ class Command(BaseCommand):
                 writer.writerow({
                     'age_group': ag['age_group'],
                     'num_deaths': ag['total'],
-                    'pct_of_deaths': ag['total'] / total_deaths,
+                    'pct_of_deaths': self.round_special(100 * (ag['total'] / total_deaths)),
                 })
 
     def handle(self, *args, **options):

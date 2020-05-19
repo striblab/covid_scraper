@@ -4,7 +4,6 @@ import csv
 import requests
 import datetime
 from datetime import timedelta
-import codecs
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
 
