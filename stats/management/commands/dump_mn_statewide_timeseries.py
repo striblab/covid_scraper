@@ -53,7 +53,7 @@ class Command(BaseCommand):
 
                 # print(current_date)
                 topline_data = topline_timeseries_values[current_date]
-                print(current_date, topline_data['update_date'])
+                # print(current_date, topline_data['update_date'])
                 if current_date < datetime.date.today() or topline_data['update_date'] == datetime.date.today():
                     # Don't output today if an update hasn't run yet today
 

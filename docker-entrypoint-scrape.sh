@@ -11,7 +11,8 @@ NATIONAL_TIMESERIES_FILENAME=national_cases_deaths_by_county_timeseries
 NATIONAL_LATEST_FILENAME=national_cases_deaths_by_county_latest
 MIDWEST_EMERGING_COUNTIES_PATH=midwest_emerging_counties
 MIDWEST_EMERGING_COUNTIES_WIDE_PATH=midwest_emerging_counties_wide
-US_LATEST_EXPORT_PATH=ctp_us_latest
+US_LATEST_EXPORT_PATH_NYT=us_latest_nyt
+US_LATEST_EXPORT_PATH_CTP=us_latest_ctp
 
 echo "Presyncing with Github..."
 python manage.py presync_github_repo
@@ -127,20 +128,24 @@ printf "\n"
 # Dashboard
 python manage.py update_dashboard_data
 
-for DASHPATH in db_procurement_legacy_* db_days_on_hand_chart_* db_days_on_hand_tbl_* db_crit_care_supply_sources_* db_procurement_*
+for DASHPATH in db_procurement_legacy_* db_days_on_hand_chart_* db_days_on_hand_tbl_* db_crit_care_supply_sources_* db_dialback_*
 do
 
   LATEST_SUPPLIES_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name $DASHPATH | sort | tail -n 1))
   echo $LATEST_SUPPLIES_SCRAPE
-  echo "Pushing copy of critical supplies csv..."
+  echo "Pushing copy of dashboard csv... $LATEST_SUPPLIES_SCRAPE"
   aws s3 cp $LATEST_SUPPLIES_SCRAPE s3://$S3_URL/dashboard/${LATEST_SUPPLIES_SCRAPE##*/} \
   --content-type=text/csv \
   --acl public-read
 done
 
-# National death toll
+# National death toll and cases
 python manage.py get_us_latest
-aws s3 cp $EXPORTS_ROOT/$US_LATEST_EXPORT_PATH.json s3://$S3_URL/$US_LATEST_EXPORT_PATH.json \
+aws s3 cp $EXPORTS_ROOT/$US_LATEST_EXPORT_PATH_NYT.csv s3://$S3_URL/csv/$US_LATEST_EXPORT_PATH_NYT.csv \
+--content-type=text/csv \
+--acl public-read
+
+aws s3 cp $EXPORTS_ROOT/$US_LATEST_EXPORT_PATH_CTP.csv s3://$S3_URL/csv/$US_LATEST_EXPORT_PATH_CTP.csv \
 --content-type=text/csv \
 --acl public-read
 

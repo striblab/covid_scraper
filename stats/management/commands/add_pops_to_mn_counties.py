@@ -20,6 +20,6 @@ class Command(BaseCommand):
 
         for c in County.objects.all():
             pop_match = mn_pops[mn_pops['full_fips'] == c.fips].POPESTIMATE2019.item()
-            print(c.name, c.fips, pop_match)
+            # print(c.name, c.fips, pop_match)
             c.pop_2019 = pop_match
             c.save()

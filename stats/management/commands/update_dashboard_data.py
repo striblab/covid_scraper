@@ -16,11 +16,12 @@ class Command(BaseCommand):
 
     FILENAMES = [
         {'orig_file': 'http://mn.gov/covid19/assets/StateofMNResponseDashboardCSV_tcm1148-427143.csv', 'download_base_name': 'db_crit_supplies_{}.csv'},
-        {'orig_file': 'https://mn.gov/covid19/assets/ProcurementCSV_tcm1148-429709.csv', 'download_base_name': 'db_procurement_legacy_{}.csv'},
+        # {'orig_file': 'https://mn.gov/covid19/assets/ProcurementCSV_tcm1148-429709.csv', 'download_base_name': 'db_procurement_legacy_{}.csv'},
         {'orig_file': 'https://mn.gov/covid19/assets/DaysonHand_CCS_Chart_tcm1148-430853.csv', 'download_base_name': 'db_days_on_hand_chart_{}.csv'},
         {'orig_file': 'https://mn.gov/covid19/assets/DaysonHand_CCS_Table_tcm1148-430852.csv', 'download_base_name': 'db_days_on_hand_tbl_{}.csv'},
         {'orig_file': 'https://mn.gov/covid19/assets/SourceofCCS_Table_tcm1148-430849.csv', 'download_base_name': 'db_crit_care_supply_sources_{}.csv'},
         {'orig_file': 'https://mn.gov/covid19/assets/ProcurementOrderDeliveryCCS_Table_tcm1148-430850.csv', 'download_base_name': 'db_procurement_{}.csv'},
+        {'orig_file': 'https://mn.gov/covid19/assets/DialBackCSV_tcm1148-431875.csv', 'download_base_name': 'db_dialback_{}.csv'},
     ]
 
     def get_csv(self):

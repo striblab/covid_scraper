@@ -12,28 +12,28 @@ from stats.models import County, AgeGroupPop, CountyTestDate, StatewideAgeDate, 
 class Command(BaseCommand):
     help = 'Dump a CSV of the latest cumulative count of statewide and county-by-county data.'
 
+    def per_1k(self, numerator, pop):
+        return round(float(numerator) / (float(pop) / 1000.0), 2)
+
     def dump_county_latest(self):
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_positive_tests_by_county.csv'), 'w') as csvfile:
 
-            fieldnames = ['county_fips', 'county_name', 'total_positive_tests', 'total_deaths', 'latitude', 'longitude']
+            fieldnames = ['county_fips', 'county_name', 'total_positive_tests', 'total_deaths', 'cases_per_1k', 'deaths_per_1k', 'pop_2019', 'latitude', 'longitude']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
-
-            msg_output = '*Latest numbers from MPH:*\n\n'
-
-            updated_total = 0
 
             for c in County.objects.all().order_by('name'):
                 latest_observation = CountyTestDate.objects.filter(county=c).order_by('-scrape_date').first()
                 if latest_observation:
-
-                    updated_total += latest_observation.cumulative_count
 
                     row = {
                         'county_fips': c.fips,
                         'county_name': c.name,
                         'total_positive_tests': latest_observation.cumulative_count,
                         'total_deaths': latest_observation.cumulative_deaths,
+                        'cases_per_1k': self.per_1k(latest_observation.cumulative_count, c.pop_2019),
+                        'deaths_per_1k': self.per_1k(latest_observation.cumulative_deaths, c.pop_2019),
+                        'pop_2019': c.pop_2019,
                         'latitude': c.latitude,
                         'longitude': c.longitude,
                     }
