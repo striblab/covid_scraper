@@ -30,14 +30,11 @@ class Command(BaseCommand):
             return False
 
     def get_county_data(self, soup):
-        # soup = BeautifulSoup(html, 'html.parser')
 
         county_data = []
 
-        # table = soup.find_all('table')[3]
-        # parent_div = soup.find("p", text=re.compile('County of residence data table'))
-        # print(parent_div)
-        table = soup.find("th", text="Deaths").find_parent("table")
+        table = soup.find("table", {'id': 'maptable'})
+        # table = soup.find("th", text="Deaths").find_parent("table")
 
         for row in table.find_all('tr'):
             tds = row.find_all('td')
@@ -102,12 +99,6 @@ class Command(BaseCommand):
                     slack_latest('SCRAPER ERROR: {}'.format(e), '#robot-dojo')
                     raise
 
-            # Now calculate cumulative deaths after adding latest daily deaths
-            # cumulative_deaths = CountyTestDate.objects.filter(county__name__iexact=observation[0].strip()).aggregate(Sum('daily_deaths'))['daily_deaths__sum']
-            # if cumulative_deaths:
-            #     county_observation.cumulative_deaths = cumulative_deaths
-            #     county_observation.save()
-
             # Slack lastest results
             case_change_text = ''
             if county_observation.daily_count != 0:
@@ -147,21 +138,14 @@ class Command(BaseCommand):
 
         return final_msg
 
-    # def find_matching_deaths(self, deaths_obj, date, county_name):
-    #     for row in deaths_obj:
-    #         # print(row['COUNTY'], datetime.datetime.strptime(row['DATE'], '%m/%d/%Y').date(), date, county_name)
-    #         if row['COUNTY'] == county_name and datetime.datetime.strptime(row['DATE'], '%m/%d/%Y').date() == date:
-    #             return row['NUM_DEATHS']
-    #     return 0
-
     def ul_regex(self, preceding_text, input_str):
         match = re.search(r'{}: ([\d,]+)'.format(preceding_text), input_str)
         if match:
             return int(match.group(1).replace(',', ''))
         return False
 
-    def detail_tables_regex(self, soup, th_text):
-        table = soup.find("th", text=th_text).find_parent("table")
+    def detail_tables_regex(self, table):
+        # table = soup.find("th", text=th_text).find_parent("table")
         rows = table.find_all("tr")
         num_rows = len(rows)
         for k, row in enumerate(rows):
@@ -191,7 +175,9 @@ class Command(BaseCommand):
     def get_statewide_cases_timeseries(self, soup, update_date):
         '''How to deal with back-dated statewide totals if they use sample dates'''
         print('Parsing statewide cases timeseries...')
-        cases_timeseries = self.full_table_parser(soup, 'Specimen collection date') # Fragile
+
+        cases_table = soup.find("table", {'id': 'casetable'})
+        cases_timeseries = self.full_table_parser(cases_table)
         # print(cases_timeseries)
         if len(cases_timeseries) > 0:
             today = datetime.date.today()
@@ -224,7 +210,9 @@ class Command(BaseCommand):
 
     def get_statewide_tests_timeseries(self, soup, update_date):
         print('Parsing statewide tests timeseries...')
-        tests_timeseries = self.full_table_parser(soup, 'Completed tests reported from external laboratories (daily)') # Fragile
+
+        tests_table = table = soup.find("table", {'id': 'labtable'})
+        tests_timeseries = self.full_table_parser(tests_table)
         # print(tests_timeseries)
 
         if len(tests_timeseries) > 0:
@@ -256,31 +244,22 @@ class Command(BaseCommand):
     # TODO: Hospitalization timeseries table
 
     def get_statewide_data(self, soup):
-        # soup = BeautifulSoup(html, 'html.parser')
         output = {}
 
-        hosp_table_latest = self.detail_tables_regex(soup, 'Hospitalized in ICU (daily)')
+        hosp_table = soup.find("table", {'id': 'hosptable'})
+        hosp_table_latest = self.detail_tables_regex(hosp_table)
+
         output['cumulative_hospitalized'] = self.parse_comma_int(hosp_table_latest['Total hospitalizations'])
         output['currently_in_icu'] = self.parse_comma_int(hosp_table_latest['Hospitalized in ICU (daily)'])
         output['currently_non_icu_hospitalized'] = self.parse_comma_int(hosp_table_latest['Hospitalized, not in ICU (daily)'])  # Not used except to add up
         output['currently_hospitalized'] = output['currently_in_icu'] + output['currently_non_icu_hospitalized']
 
-        deaths_table_latest = self.detail_tables_regex(soup, 'Total deaths')
+        deaths_table = soup.find("table", {'id': 'deathtable'})
+        deaths_table_latest = self.detail_tables_regex(deaths_table)
         output['cumulative_statewide_deaths'] = self.parse_comma_int(deaths_table_latest['Total deaths'])
 
-        # recoveries_table_latest = self.detail_tables_regex(soup, 'No longer needing isolation')
-        # output['cumulative_statewide_recoveries'] = self.parse_comma_int(recoveries_table_latest['No longer needing isolation'])
-
-        # output['cumulative_statewide_recoveries'] = self.parse_comma_int(recoveries_table_latest['No longer needing isolation'])
-
-        # ps = soup.find_all('p')
-        # for p in ps:
-        #     cumulative_positive_tests_match = self.p_regex('Total positive', p.text)
-        #     if cumulative_positive_tests_match:
-        #         output['cumulative_positive_tests'] = cumulative_positive_tests_match
-
         newly_reported_cases_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported cases')).find_parent('td').find('strong').text)
-        print(newly_reported_cases_match)
+        # print(newly_reported_cases_match)
         if newly_reported_cases_match:
             output['cases_newly_reported'] = newly_reported_cases_match
 
@@ -289,23 +268,17 @@ class Command(BaseCommand):
         # if new_deaths_match:
         #     output['new_deaths'] = new_deaths_match
 
-        # daily_cases_removed_match = self.ul_regex('Cases removed', ul.text)
-        # if daily_cases_removed_match:
-        #     output['removed_cases'] = daily_cases_removed_match
-
         uls = soup.find_all('ul')
         for ul in uls:
             cumulative_positive_tests_match = self.ul_regex('Total positive', ul.text)
             if cumulative_positive_tests_match:
-                print(cumulative_positive_tests_match)
+                # print(cumulative_positive_tests_match)
                 output['cumulative_positive_tests'] = cumulative_positive_tests_match
 
             daily_cases_removed_match = self.ul_regex('Cases removed\*', ul.text)
             if daily_cases_removed_match is not False:
                 output['removed_cases'] = daily_cases_removed_match
-                print('cases removed', daily_cases_removed_match)
-            # else:
-            #     output['removed_cases'] = None
+                # print('cases removed', daily_cases_removed_match)
 
             cumulative_completed_mdh_match = self.ul_regex('Total approximate number of completed tests from the MDH Public Health Lab', ul.text)
             if cumulative_completed_mdh_match:
@@ -319,8 +292,6 @@ class Command(BaseCommand):
             if recoveries_match:
                 output['cumulative_statewide_recoveries'] = recoveries_match
 
-
-        # print(cumulative_hospitalized, currently_hospitalized, currently_in_icu)
         return output
 
     def change_sign(self, input_int):
@@ -331,9 +302,9 @@ class Command(BaseCommand):
                 optional_plus = ':rotating_light: '
         return '{}{}'.format(optional_plus, f'{input_int:,}')
 
-    def full_table_parser(self, soup, find_str):
+    def full_table_parser(self, table):
         ''' should work on multiple columns '''
-        table = soup.find("th", text=find_str).find_parent("table")
+        # table = soup.find("th", text=find_str).find_parent("table")
         rows = table.find_all("tr")
         num_rows = len(rows)
         data_rows = []
@@ -355,17 +326,17 @@ class Command(BaseCommand):
         '''Removing pct sign, and changing <1 to -1'''
         if input_str == '<1%':
             return -1
-
         try:
             return int(input_str.replace('%', ''))
         except:
             return None
 
-
     def get_recent_deaths_data(self, soup):
         today = datetime.date.today()
-        recent_deaths_ages = self.full_table_parser(soup, 'County of residence') # Fragile
-        print(recent_deaths_ages)
+        recent_deaths_table = table = soup.find("table", {'id': 'dailydeathar'})
+        recent_deaths_ages = self.full_table_parser(recent_deaths_table)
+
+        # print(recent_deaths_ages)
         cleaned_data = []
         for group in recent_deaths_ages:
             clean_row = {
@@ -377,33 +348,6 @@ class Command(BaseCommand):
             cleaned_data.append(clean_row)
         return cleaned_data
 
-    # def get_existing_recent_deaths_records(self):
-    #     ''' See if you already have any deaths from today'''
-    #     today = datetime.date.today()
-    #     max_death_date = Death.objects.all().aggregate(Max('scrape_date'))['scrape_date__max']
-    #     if max_death_date != today:
-    #         bool_yesterday = True
-    #     else:
-    #         bool_yesterday = False
-    #
-    #     most_recent_deaths = Death.objects.filter(scrape_date=max_death_date).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
-    #     print(most_recent_deaths, bool_yesterday)
-    #     return most_recent_deaths, bool_yesterday
-    #     # if max_death_date == today:
-    #     #     # There is already data for today, compare to that
-    #     # print(max_death_date)
-    #     #     today_deaths = Death.objects.filter(scrape_date=today).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
-    #     #     return today_deaths
-    #     # else:
-    #     #     # There isn't data yet for today, so compare to existing max day
-    #     # if today_deaths.count() > 0:
-    #     #     # TODO: Are these the same as yesterday's? (I.E. has the daily update not happened yet)
-    #     #
-    #     #     return today_deaths
-    #     #
-    #     #
-    #     # return None
-
     def load_recent_deaths(self, scraped_deaths):
         existing_deaths = Death.objects.filter(scrape_date=datetime.date.today()).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
 
@@ -411,7 +355,7 @@ class Command(BaseCommand):
         date_stripped_existing = [{i:d[i] for i in d if i != 'scrape_date'} for d in existing_deaths]
 
         bool_changes = [i for i in date_stripped_scraped if i not in date_stripped_existing] != []
-        print(bool_changes)
+        # print(bool_changes)
 
         if bool_changes:
 
@@ -436,7 +380,7 @@ class Command(BaseCommand):
                         sd['scrape_date'] = similar[0]['scrape_date']  # If you're going to remove, make sure it's from the max_date, not necessarily today
                         deaths_to_remove.append(sd)
 
-            print(deaths_to_add, deaths_to_remove)
+            # print(deaths_to_add, deaths_to_remove)
             # Removing records
             for group in deaths_to_remove:
                 remove_count = group['count']
@@ -461,9 +405,9 @@ class Command(BaseCommand):
             Death.objects.bulk_create(new_deaths)
 
     def get_age_data(self, soup):
-        # soup = BeautifulSoup(html, 'html.parser')
+        age_table = soup.find("table", {'id': 'agetable'})
+        ages_data = self.full_table_parser(age_table)
 
-        ages_data = self.full_table_parser(soup, 'Age Group')
         cleaned_ages_data = []
         for d in ages_data:
             d['Number of Cases'] = self.parse_comma_int(d['Number of Cases'])
@@ -573,8 +517,6 @@ class Command(BaseCommand):
 
         return final_msg
 
-        # return 'COVID scraper: No updates found in statewide numbers.\n\n'
-
     def updated_today(self, soup):
         update_date_node = soup.find("strong", text=re.compile('Updated [A-z]+ \d{1,2}, \d{4}')).text
 
@@ -620,7 +562,7 @@ class Command(BaseCommand):
             if bool_updated_today:
 
                 recent_deaths_data = self.get_recent_deaths_data(soup)
-                print(recent_deaths_data)
+                # print(recent_deaths_data)
 
                 # existing_today_deaths, bool_yesterday = self.get_existing_recent_deaths_records()
                 # print(existing_today_deaths, bool_yesterday)

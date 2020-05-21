@@ -231,7 +231,7 @@ class Command(BaseCommand):
 
             df_bystate_100_plus = df_bystate[df_bystate['cases'] >= 100].sort_values(['state', 'date'])
             df_bystate_100_plus['day_counter'] = df_bystate_100_plus.groupby(['state']).cumcount()
-            print(df_bystate_100_plus)
+            # print(df_bystate_100_plus)
             df_bystate_100_plus.to_csv(self.STATE_TIMESERIES_EXPORT_PATH, index=False)
 
             print('Exporting national timeseries...')
