@@ -18,7 +18,7 @@ echo "Presyncing with Github..."
 python manage.py presync_github_repo
 
 echo Starting scrape...
-python manage.py update_mn_county_counts
+python manage.py update_mn_data
 ret=$?
 if [ $ret -ne 0 ]; then
      echo "Somthing went wrong."
