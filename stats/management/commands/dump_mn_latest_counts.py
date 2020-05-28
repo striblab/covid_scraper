@@ -1,6 +1,7 @@
 import os
 import re
 import csv
+import datetime
 
 from django.conf import settings
 
@@ -130,9 +131,10 @@ class Command(BaseCommand):
             total_death_count = topline_data.cumulative_statewide_deaths
 
             age_groups = AgeGroupPop.objects.all().order_by('pk')
+            # age_groups = StatewideAgeDate.objects.filter(scrape_date=datetime.date.today()).order_by('pk')
             for a in age_groups:
                 # print(a.age_group)
-                    # print(s.age_group)
+                print(a.age_group)
                 lr = StatewideAgeDate.objects.get(age_group=a.age_group, scrape_date=max_date)
             # for lr in latest_records:
 

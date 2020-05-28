@@ -6,6 +6,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.db.models import Min, Max
 from django.core.management.base import BaseCommand
+# from django.db.models import Avg, F, RowRange, Window
 from stats.models import StatewideTotalDate, StatewideCasesBySampleDate, StatewideTestsDate
 
 
@@ -35,6 +36,15 @@ class Command(BaseCommand):
                 tests_timeseries_values[t] = latest_record
             # print(tests_timeseries_values)
 
+            # TODO: add rolling average
+            # items = StatewideTotalDate.objects.annotate(
+            #     case_chng_rolling=Window(
+            #         expression=Avg('cases_daily_change'),
+            #         order_by=F('scrape_date').asc(),
+            #         frame=RowRange(start=-7,end=0)
+            #     )
+            # )
+            
             # Topline records: get all by date
             topline_timeseries_values = {}
             for s in StatewideTotalDate.objects.all().values():

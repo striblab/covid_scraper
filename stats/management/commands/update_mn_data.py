@@ -270,7 +270,7 @@ class Command(BaseCommand):
 
         uls = soup.find_all('ul')
         for ul in uls:
-            cumulative_positive_tests_match = self.ul_regex('Total positive', ul.text)
+            cumulative_positive_tests_match = self.ul_regex('Total positive cases', ul.text)
             if cumulative_positive_tests_match:
                 # print(cumulative_positive_tests_match)
                 output['cumulative_positive_tests'] = cumulative_positive_tests_match

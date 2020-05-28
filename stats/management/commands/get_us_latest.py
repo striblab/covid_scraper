@@ -14,7 +14,7 @@ from django.core.management.base import BaseCommand
 class Command(BaseCommand):
     help = 'Grab the latest national figures from Covid Tracking Project'
 
-    NYT_ENDPOINT = 'https://raw.githubusercontent.com/nytimes/covid-19-data/master/us.csv'
+    NYT_ENDPOINT = 'https://raw.githubusercontent.com/nytimes/covid-19-data/master/live/us.csv'
     CTP_ENDPOINT = 'https://covidtracking.com/api/v1/us/current.json'
 
     US_LATEST_EXPORT_PATH_NYT = os.path.join(settings.BASE_DIR, 'exports', 'us_latest_nyt.csv')
