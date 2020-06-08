@@ -94,6 +94,10 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
+  aws s3 cp $EXPORTS_ROOT/$STATEWIDE_TIMESERIES_FILENAME.json s3://$S3_URL/json/$STATEWIDE_TIMESERIES_FILENAME.json \
+  --content-type=application/json \
+  --acl public-read
+
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TIMESERIES_TALL_FILENAME.csv \
   --content-type=text/csv \
   --acl public-read
@@ -104,6 +108,10 @@ if (("${LINE_COUNT[0]}" > 2)); then
 
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$STATEWIDE_TIMESERIES_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/$STATEWIDE_TIMESERIES_FILENAME.json s3://$S3_URL/json/versions/$STATEWIDE_TIMESERIES_FILENAME-$download_datetime.json \
+  --content-type=application/json \
   --acl public-read
 
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TIMESERIES_TALL_FILENAME-$download_datetime.csv \

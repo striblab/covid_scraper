@@ -136,5 +136,5 @@ class Command(BaseCommand):
             writer.writeheader()
             writer.writerows(rows)
 
-        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_timeseries.json'), 'w') as jsonfile:
+        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_statewide_timeseries.json'), 'w') as jsonfile:
             jsonfile.write(json.dumps(rows))
