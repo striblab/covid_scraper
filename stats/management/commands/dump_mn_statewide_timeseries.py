@@ -83,20 +83,24 @@ class Command(BaseCommand):
                     # removed_cases = topline_data['removed_cases']
                 total_cases = topline_data['cumulative_positive_tests']
 
-                if current_date - timedelta(days=1) in tests_timeseries_values:
-                    tr = tests_timeseries_values[current_date - timedelta(days=1)]
-                    new_tests = tr['new_state_tests'] + tr['new_external_tests']
-                    total_tests = tr['total_tests']
-                    # print('using shifted mdh timeseries')
-                elif current_date in topline_timeseries_values:
-                    tr = topline_timeseries_values[current_date]
-
-                    new_tests = tr['cumulative_completed_tests'] - previous_total_tests
-                    total_tests = tr['cumulative_completed_tests']
-
-                else:
+                if current_date <= datetime.date(2020, 3, 28):  # Temp conditional for old test dates
                     new_tests = 0
-                    total_tests = previous_total_tests
+                    total_tests = 0
+                else:
+                    if current_date - timedelta(days=1) in tests_timeseries_values:
+                        tr = tests_timeseries_values[current_date - timedelta(days=1)]
+                        new_tests = tr['new_state_tests'] + tr['new_external_tests']
+                        total_tests = tr['total_tests']
+                        # print('using shifted mdh timeseries')
+                    elif current_date in topline_timeseries_values:
+                        tr = topline_timeseries_values[current_date]
+
+                        new_tests = tr['cumulative_completed_tests'] - previous_total_tests
+                        total_tests = tr['cumulative_completed_tests']
+
+                    else:
+                        new_tests = 0
+                        total_tests = previous_total_tests
 
                 previous_total_tests = total_tests
 
@@ -122,8 +126,8 @@ class Command(BaseCommand):
                     'total_statewide_deaths': topline_data['cumulative_statewide_deaths'],
                     'new_statewide_deaths': new_deaths,
                     'total_statewide_recoveries': topline_data['cumulative_statewide_recoveries'],
-                    'total_completed_tests': total_tests,
-                    'new_completed_tests': new_tests,
+                    'total_completed_tests': '' if current_date <= datetime.date(2020, 3, 28) else total_tests,
+                    'new_completed_tests': '' if current_date <= datetime.date(2020, 3, 28) else new_tests,
                 }
                 rows.append(row)
                 # writer.writerow(row)
@@ -131,7 +135,8 @@ class Command(BaseCommand):
             current_date += timedelta(days=1)
 
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_timeseries.csv'), 'w') as csvfile:
-            fieldnames = ['date', 'total_confirmed_cases', 'cases_daily_change', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_total_sample_date', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'total_statewide_deaths', 'new_statewide_deaths', 'total_statewide_recoveries', 'total_completed_tests', 'new_completed_tests']
+            fieldnames = ['date', 'total_confirmed_cases', 'cases_daily_change', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_total_sample_date', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'total_statewide_deaths', 'new_statewide_deaths', 'total_statewide_recoveries', 'total_completed_tests' , 'new_completed_tests']
+
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
