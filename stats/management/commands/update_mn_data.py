@@ -268,6 +268,28 @@ class Command(BaseCommand):
         # if new_deaths_match:
         #     output['new_deaths'] = new_deaths_match
 
+        # THIS IS WHERE CARNAGE FROM THOMAS BEGINS
+
+        mdh_tests = 0
+        private_tests = 0
+
+        tests_table = table = soup.find("table", {'id': 'labtable'})
+        tests_timeseries = self.full_table_parser(tests_table)
+        # print(int(tests_timeseries[len(tests_timeseries) - 1]['Total approximate number of completed tests '].replace(',', '')))
+
+        # mike, I am truly sorry for this - TO
+        output['total_statewide_tests'] = int(tests_timeseries[len(tests_timeseries) - 1]['Total approximate number of completed tests '].replace(',', ''))
+
+        for c in tests_timeseries:
+            if c['Date reported to MDH'] == 'Unknown/missing':
+                continue
+            else:
+                mdh_tests = mdh_tests + self.parse_comma_int(c['Completed tests reported from the MDH Public Health Lab (daily)'])
+                private_tests = private_tests + self.parse_comma_int(c['Completed tests reported from external laboratories (daily)'])
+
+        output['cumulative_completed_mdh'] = mdh_tests
+        output['cumulative_completed_private'] = private_tests
+
         uls = soup.find_all('ul')
         for ul in uls:
             cumulative_positive_tests_match = self.ul_regex('Total positive cases', ul.text)
@@ -280,13 +302,13 @@ class Command(BaseCommand):
                 output['removed_cases'] = daily_cases_removed_match
                 # print('cases removed', daily_cases_removed_match)
 
-            cumulative_completed_mdh_match = self.ul_regex('Total approximate number of completed tests from the MDH Public Health Lab', ul.text)
-            if cumulative_completed_mdh_match:
-                output['cumulative_completed_mdh'] = cumulative_completed_mdh_match
-
-            cumulative_completed_private_match = self.ul_regex('Total approximate number of completed tests from external laboratories', ul.text)
-            if cumulative_completed_private_match:
-                output['cumulative_completed_private'] = cumulative_completed_private_match
+            # cumulative_completed_mdh_match = self.ul_regex('Total approximate number of completed tests from the MDH Public Health Lab', ul.text)
+            # if cumulative_completed_mdh_match:
+            #     output['cumulative_completed_mdh'] = cumulative_completed_mdh_match
+            #
+            # cumulative_completed_private_match = self.ul_regex('Total approximate number of completed tests from external laboratories', ul.text)
+            # if cumulative_completed_private_match:
+            #     output['cumulative_completed_private'] = cumulative_completed_private_match
 
             recoveries_match = self.ul_regex('Patients no longer needing isolation', ul.text)
             if recoveries_match:
@@ -441,7 +463,7 @@ class Command(BaseCommand):
         # previous_statewide_results = StatewideTotalDate.objects.all().order_by('-scrape_date').first()
 
         today = datetime.date.today()
-        total_statewide_tests = statewide_data['cumulative_completed_mdh'] + statewide_data['cumulative_completed_private']
+        total_statewide_tests = statewide_data['total_statewide_tests']
         cases_daily_change = statewide_data['cumulative_positive_tests'] - yesterday_results.cumulative_positive_tests
         deaths_daily_change = statewide_data['cumulative_statewide_deaths'] - yesterday_results.cumulative_statewide_deaths
         try:
