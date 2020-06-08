@@ -27,7 +27,7 @@ class Command(BaseCommand):
             death_total = raw_json['death']
             utc = pytz.utc
             central = timezone('US/Central')
-            last_update = utc.localize(datetime.strptime(raw_json['lastModified'], '%Y-%m-%dT%H:%M:%S.%fZ')).astimezone(central).strftime('%Y-%m-%d %H:%M')
+            last_update = utc.localize(datetime.strptime(raw_json['lastModified'], '%Y-%m-%dT%H:%M:%S%fZ')).astimezone(central).strftime('%Y-%m-%d %H:%M')
 
             out_dict = {
                 'death_total': f'{death_total:,}',
