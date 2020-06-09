@@ -84,7 +84,12 @@ def get_matching_s3_cached_html(bucket, prefix, s3):
 
 
 def find_filename_date_matchs(matching_files, hour, slice='first'):
-    file_regex = re.compile('(\d{4}-\d{2}-\d{2})_' + str(hour) + '\d{2}.html')
+    ''' Get the first or last cached file from a given hour on this date. If hour is null, return the last record from that date'''
+    if hour:
+        file_regex = re.compile('(\d{4}-\d{2}-\d{2})_' + str(hour) + '\d{2}.html')
+    else:
+        file_regex = re.compile('(\d{4}-\d{2}-\d{2})_\d{4}.html')
+
     date_matches = [f for f in matching_files if re.search(file_regex, f)]
     date_matches.sort()
 
@@ -92,7 +97,9 @@ def find_filename_date_matchs(matching_files, hour, slice='first'):
     for d in date_matches:
         parsed_date = re.search(file_regex, d)
         scrape_date = datetime.datetime.strptime(parsed_date.group(1), '%Y-%m-%d').date()
-        if slice == 'first':
+        if not hour:
+            date_matches_unique[scrape_date] = d  # Keep going until you reach the last one
+        elif slice == 'first':
             if scrape_date not in date_matches_unique.keys():
                 date_matches_unique[scrape_date] = d
         elif slice == 'last':  # Keep overwriting until you get to the last one

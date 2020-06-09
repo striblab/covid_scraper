@@ -615,5 +615,5 @@ class Command(BaseCommand):
                 # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')
                 # slack_latest('Scraper update: No county changes detected.', '#covid-tracking')
                 # slack_latest(statewide_msg_output, '#robot-dojo')  # Force output anyway
-                slack_latest(statewide_msg_output + test_msg_output + county_msg_output, '#robot-dojo')  # Force output anyway
+                # slack_latest(statewide_msg_output + test_msg_output + county_msg_output, '#robot-dojo')  # Force output anyway
                 slack_latest('COVID scraper update: No changes detected.', '#robot-dojo')
