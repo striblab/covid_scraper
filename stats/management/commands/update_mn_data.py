@@ -228,17 +228,25 @@ class Command(BaseCommand):
                 else:
                     reported_date = self.parse_mdh_date(c['Date reported to MDH'], today)
 
+                new_state_tests = self.parse_comma_int(c['Completed tests reported from the MDH Public Health Lab (daily)'])
+                new_external_tests = self.parse_comma_int(c['Completed tests reported from external laboratories (daily)'])
+                total_tests = self.parse_comma_int(c['Total approximate number of completed tests '])
+
                 std = StatewideTestsDate(
                     reported_date=reported_date,
-                    new_state_tests=self.parse_comma_int(c['Completed tests reported from the MDH Public Health Lab (daily)']),
-                    new_external_tests=self.parse_comma_int(c['Completed tests reported from external laboratories (daily)']),
-                    total_tests=self.parse_comma_int(c['Total approximate number of completed tests ']),
+                    new_state_tests=new_state_tests,
+                    new_external_tests=new_external_tests,
+                    total_tests=total_tests,
                     update_date=update_date,
                     scrape_date=today,
                 )
                 test_objs.append(std)
             print('Adding {} records of test timeseries data'.format(len(test_objs)))
             StatewideTestsDate.objects.bulk_create(test_objs)
+
+        msg_output = '*{}* total tests completed (*{}* today)\n\n'.format(f'{total_tests:,}', self.change_sign(new_state_tests + new_external_tests))
+
+        return msg_output
 
 
     # TODO: Hospitalization timeseries table
@@ -532,9 +540,11 @@ class Command(BaseCommand):
         msg_output += '*{}* cases total (change of *{}* today, *{}* newly reported, *{}* removed)\n'.format(f'{current_statewide_observation.cumulative_positive_tests:,}', self.change_sign(cases_daily_change), f'{current_statewide_observation.cases_newly_reported:,}', f'{current_statewide_observation.removed_cases:,}')
         msg_output += '*{}* currently hospitalized (*{}* today)\n'.format(f'{current_statewide_observation.currently_hospitalized:,}', self.change_sign(hospitalizations_change))
         msg_output += '*{}* currently in ICU (*{}* today)\n'.format(f'{current_statewide_observation.currently_in_icu:,}', self.change_sign(icu_change))
-        msg_output += '*{}* total tests completed (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_completed_tests:,}', self.change_sign(new_tests))
 
-        final_msg = 'COVID scraper found updated data on the <https://www.health.state.mn.us/diseases/coronavirus/situation.html|MDH situation page>...\n\n' + msg_output + '\n'
+        # TODO: Separate new tests in message
+        # msg_output += '*{}* total tests completed (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_completed_tests:,}', self.change_sign(new_tests))
+
+        final_msg = 'COVID scraper found updated data on the <https://www.health.state.mn.us/diseases/coronavirus/situation.html|MDH situation page>...\n\n' + msg_output
         print(final_msg)
 
         return final_msg
@@ -575,7 +585,7 @@ class Command(BaseCommand):
             statewide_msg_output = self.update_statewide_records(statewide_data, update_date)
 
             self.get_statewide_cases_timeseries(soup, update_date)
-            self.get_statewide_tests_timeseries(soup, update_date)
+            test_msg_output = self.get_statewide_tests_timeseries(soup, update_date)
 
             age_data = self.get_age_data(soup)
             # print(age_data)
@@ -599,11 +609,11 @@ class Command(BaseCommand):
                 # new_statewide_cases = statewide_data['cumulative_positive_tests'] - previous_statewide_cases
                 # slack_header = '*{} new cases announced statewide.*\n\n'.format(new_statewide_cases)
                 # slack_latest(statewide_msg_output, '#virus')
-                slack_latest(statewide_msg_output + county_msg_output, '#virus')
+                slack_latest(statewide_msg_output + test_msg_output + county_msg_output, '#virus')
                 # slack_latest(statewide_msg_output + county_msg_output, '#covid-tracking')
             else:
                 # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')
                 # slack_latest('Scraper update: No county changes detected.', '#covid-tracking')
                 # slack_latest(statewide_msg_output, '#robot-dojo')  # Force output anyway
-                # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')  # Force output anyway
+                slack_latest(statewide_msg_output + test_msg_output + county_msg_output, '#robot-dojo')  # Force output anyway
                 slack_latest('COVID scraper update: No changes detected.', '#robot-dojo')
