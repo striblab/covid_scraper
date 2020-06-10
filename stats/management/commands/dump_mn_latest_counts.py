@@ -1,6 +1,7 @@
 import os
 import re
 import csv
+import json
 import datetime
 
 from django.conf import settings
@@ -17,29 +18,32 @@ class Command(BaseCommand):
         return round(float(numerator) / (float(pop) / 1000.0), 2)
 
     def dump_county_latest(self):
-        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_positive_tests_by_county.csv'), 'w') as csvfile:
+        rows = []
+        for c in County.objects.all().order_by('name'):
+            latest_observation = CountyTestDate.objects.filter(county=c).order_by('-scrape_date').first()
+            if latest_observation:
 
+                row = {
+                    'county_fips': c.fips,
+                    'county_name': c.name,
+                    'total_positive_tests': latest_observation.cumulative_count,
+                    'total_deaths': latest_observation.cumulative_deaths,
+                    'cases_per_1k': self.per_1k(latest_observation.cumulative_count, c.pop_2019),
+                    'deaths_per_1k': self.per_1k(latest_observation.cumulative_deaths, c.pop_2019),
+                    'pop_2019': c.pop_2019,
+                    'latitude': c.latitude,
+                    'longitude': c.longitude,
+                }
+                rows.append(row)
+
+        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_positive_tests_by_county.csv'), 'w') as csvfile:
             fieldnames = ['county_fips', 'county_name', 'total_positive_tests', 'total_deaths', 'cases_per_1k', 'deaths_per_1k', 'pop_2019', 'latitude', 'longitude']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
+            writer.writerows(rows)
 
-            for c in County.objects.all().order_by('name'):
-                latest_observation = CountyTestDate.objects.filter(county=c).order_by('-scrape_date').first()
-                if latest_observation:
-
-                    row = {
-                        'county_fips': c.fips,
-                        'county_name': c.name,
-                        'total_positive_tests': latest_observation.cumulative_count,
-                        'total_deaths': latest_observation.cumulative_deaths,
-                        'cases_per_1k': self.per_1k(latest_observation.cumulative_count, c.pop_2019),
-                        'deaths_per_1k': self.per_1k(latest_observation.cumulative_deaths, c.pop_2019),
-                        'pop_2019': c.pop_2019,
-                        'latitude': c.latitude,
-                        'longitude': c.longitude,
-                    }
-
-                    writer.writerow(row)
+        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_counties_latest.json'), 'w') as jsonfile:
+            jsonfile.write(json.dumps(rows))
 
     def dump_state_latest(self):
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_latest.csv'), 'w') as csvfile:

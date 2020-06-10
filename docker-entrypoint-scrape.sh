@@ -1,6 +1,7 @@
 #!/bin/bash
 EXPORTS_ROOT=covid_scraper/exports
 COUNTY_TESTS_FILENAME=mn_positive_tests_by_county
+COUNTY_LATEST_FILENAME=mn_counties_latest
 STATEWIDE_LATEST_FILENAME=mn_statewide_latest
 AGES_LATEST_FILENAME=mn_ages_latest
 DEATH_AGES_LATEST_FILENAME=mn_death_ages_detailed_latest
@@ -49,6 +50,10 @@ if (("${LINE_COUNT[0]}" > 2)); then
 
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TESTS_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/$COUNTY_LATEST_FILENAME.json s3://$S3_URL/json/$COUNTY_LATEST_FILENAME.json \
+  --content-type=application/json \
   --acl public-read
 
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv s3://$S3_URL/csv/$STATEWIDE_LATEST_FILENAME.csv \

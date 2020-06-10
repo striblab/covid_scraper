@@ -1,5 +1,5 @@
+from datetime import timedelta
 from django.db import models
-
 
 class County(models.Model):
     name = models.CharField(max_length=50)
@@ -86,6 +86,21 @@ class StatewideTotalDate(models.Model):
 
     scrape_date = models.DateField()
     last_update = models.DateTimeField(auto_now=True)
+
+    def backfill_new_deaths(self):
+        if self.new_deaths == 0:
+            try:
+                previous_day = StatewideTotalDate.objects.get(scrape_date=self.scrape_date - timedelta(days=1))
+                daily_deaths = self.cumulative_statewide_deaths - previous_day.cumulative_statewide_deaths
+                # print(self.cumulative_statewide_deaths - previous_day.cumulative_statewide_deaths)
+                self.new_deaths = daily_deaths
+                self.save()
+                return daily_deaths
+            except:
+                print("can't find previous...")
+        else:
+            return self.new_deaths
+
 
 
 class CountyTestDate(models.Model):
