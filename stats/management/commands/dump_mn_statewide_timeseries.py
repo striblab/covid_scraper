@@ -27,6 +27,8 @@ class Command(BaseCommand):
         # Tests: Get max scrape date for each real date
         tests_timeseries_values = {}
         tests_reported_dates = StatewideTestsDate.objects.all().values_list('reported_date', flat=True).distinct()
+        # test_records = StatewideTestsDate.objects.filter(reported_date__in=tests_reported_dates).order_by('scrape_date')
+        # TODO: How to calculate rolling averages
         for t in tests_reported_dates:
             latest_record = StatewideTestsDate.objects.filter(reported_date=t).values().latest('scrape_date')
             tests_timeseries_values[t] = latest_record
@@ -106,13 +108,15 @@ class Command(BaseCommand):
                 else:
                     if current_date - timedelta(days=1) in tests_timeseries_values:
                         tr = tests_timeseries_values[current_date - timedelta(days=1)]
-                        new_tests = tr['new_state_tests'] + tr['new_external_tests']
+                        new_tests = tr['new_tests']
+                        new_tests_rolling = tr['new_tests_rolling']
                         total_tests = tr['total_tests']
                         # print('using shifted mdh timeseries')
                     elif current_date in topline_timeseries_values:
                         tr = topline_timeseries_values[current_date]
 
                         new_tests = tr['cumulative_completed_tests'] - previous_total_tests
+                        new_tests_rolling = None
                         total_tests = tr['cumulative_completed_tests']
 
                     else:
@@ -147,6 +151,7 @@ class Command(BaseCommand):
                     'total_statewide_recoveries': topline_data['cumulative_statewide_recoveries'],
                     'total_completed_tests': '' if current_date <= datetime.date(2020, 3, 28) else total_tests,
                     'new_completed_tests': '' if current_date <= datetime.date(2020, 3, 28) else new_tests,
+                    'new_completed_tests_rolling': '' if current_date <= datetime.date(2020, 3, 28) else round(new_tests_rolling, 1),
                 }
                 rows.append(row)
                 # writer.writerow(row)
@@ -154,7 +159,7 @@ class Command(BaseCommand):
             current_date += timedelta(days=1)
 
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_timeseries.csv'), 'w') as csvfile:
-            fieldnames = ['date', 'total_confirmed_cases', 'cases_daily_change', 'cases_daily_change_rolling', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_total_sample_date', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'total_statewide_deaths', 'new_statewide_deaths', 'new_statewide_deaths_rolling', 'total_statewide_recoveries', 'total_completed_tests' , 'new_completed_tests']
+            fieldnames = ['date', 'total_confirmed_cases', 'cases_daily_change', 'cases_daily_change_rolling', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_total_sample_date', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'total_statewide_deaths', 'new_statewide_deaths', 'new_statewide_deaths_rolling', 'total_statewide_recoveries', 'total_completed_tests' , 'new_completed_tests', 'new_completed_tests_rolling']
 
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()

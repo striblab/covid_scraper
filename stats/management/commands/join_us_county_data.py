@@ -1,5 +1,6 @@
 import os
 import csv
+import geojson
 import requests
 import pandas as pd
 import numpy as np
@@ -21,6 +22,7 @@ class Command(BaseCommand):
     STATE_TIMESERIES_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'state_cases_from_100_timeseries.csv')
     TIMESERIES_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_timeseries.csv')
     LATEST_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_latest.csv')
+    LATEST_JSON_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_latest.json')
     MIDWEST_EMERGING_COUNTIES_PATH = os.path.join(settings.BASE_DIR, 'exports', 'midwest_emerging_counties.csv')
     MIDWEST_EMERGING_COUNTIES_WIDE_PATH = os.path.join(settings.BASE_DIR, 'exports', 'midwest_emerging_counties_wide.csv')
 
@@ -154,6 +156,18 @@ class Command(BaseCommand):
         # print(worst_100_pivot)
         worst_100_pivot.to_csv(self.MIDWEST_EMERGING_COUNTIES_WIDE_PATH, index=False)
 
+    def df_to_geojson(self, df):
+        features = []
+        insert_features = lambda x: features.append(
+            geojson.Feature(geometry=geojson.Point((x["longitude"],
+                                                    x["latitude"])),
+                            properties={k: v for k, v in x.items() if k not in ['longtitude', 'latitude']}
+                        ))
+        df.dropna().apply(insert_features, axis=1)
+
+        with open(self.LATEST_JSON_EXPORT_PATH, 'w', encoding='utf8') as fp:
+            geojson.dump(geojson.FeatureCollection(features), fp, sort_keys=True, ensure_ascii=False)
+
     def handle(self, *args, **options):
 
         nyt_csv = self.download_nyt_data()
@@ -246,7 +260,7 @@ class Command(BaseCommand):
             )
 
             print('Exporting latest observations...')
-            latest_df[[
+            out_df = latest_df[[
                 'fips',
                 'state',
                 'county',
@@ -258,6 +272,12 @@ class Command(BaseCommand):
                 'latitude',
                 'longitude',
                 'date',
-            ]].to_csv(self.LATEST_EXPORT_PATH, index=False)
+            ]]
+
+            out_df.to_csv(self.LATEST_EXPORT_PATH, index=False)
+            self.df_to_geojson(out_df)
+
+            # with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_statewide_timeseries.json'), 'w') as jsonfile:
+            #     jsonfile.write(json.dumps(rows))
 
             self.build_emerging_counties(df_subset)

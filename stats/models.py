@@ -54,6 +54,8 @@ class StatewideTestsDate(models.Model):
     reported_date = models.DateField(null=True)
     new_state_tests = models.IntegerField(default=0)
     new_external_tests = models.IntegerField(default=0)
+    new_tests = models.IntegerField(default=0)
+    new_tests_rolling = models.FloatField(default=0)
     total_tests = models.IntegerField(default=0)
     update_date = models.DateField(null=True)  # The day MDH said this data was last updated
     scrape_date = models.DateField()

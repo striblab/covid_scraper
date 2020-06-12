@@ -14,11 +14,22 @@ MIDWEST_EMERGING_COUNTIES_PATH=midwest_emerging_counties
 MIDWEST_EMERGING_COUNTIES_WIDE_PATH=midwest_emerging_counties_wide
 US_LATEST_EXPORT_PATH_NYT=us_latest_nyt
 US_LATEST_EXPORT_PATH_CTP=us_latest_ctp
+STATES_LATEST_EXPORT_PATH=states_latest_ctp
+
+TZ=America/Chicago date
 
 echo "Presyncing with Github..."
 python manage.py presync_github_repo
 
 echo Starting scrape...
+
+echo "Pushing copy of MDH html..."
+cache_datetime=$(TZ=America/Chicago date '+%Y-%m-%d_%H%M');
+curl -s --compressed https://www.health.state.mn.us/diseases/coronavirus/situation.html > $EXPORTS_ROOT/html/situation_$cache_datetime.html
+aws s3 cp $EXPORTS_ROOT/html/situation_$cache_datetime.html s3://$S3_URL/html/situation_$cache_datetime.html \
+--content-type=text/html \
+--acl public-read
+
 python manage.py update_mn_data
 ret=$?
 if [ $ret -ne 0 ]; then
@@ -28,13 +39,13 @@ fi
 echo Dumping latest county counts...
 python manage.py dump_mn_latest_counts
 
-LATEST_HTML_SCRAPE=($(ls -Art $EXPORTS_ROOT/html/ | tail -n 1))
-echo $LATEST_HTML_SCRAPE
-echo "Pushing copy of MDH html..."
-echo Pushing csvs to S3...
-aws s3 cp $EXPORTS_ROOT/html/$LATEST_HTML_SCRAPE s3://$S3_URL/html/$LATEST_HTML_SCRAPE \
---content-type=text/html \
---acl public-read
+# LATEST_HTML_SCRAPE=($(ls -Art $EXPORTS_ROOT/html/ | tail -n 1))
+# echo $LATEST_HTML_SCRAPE
+# echo "Pushing copy of MDH html..."
+# echo Pushing csvs to S3...
+# aws s3 cp $EXPORTS_ROOT/html/$LATEST_HTML_SCRAPE s3://$S3_URL/html/$LATEST_HTML_SCRAPE \
+# --content-type=text/html \
+# --acl public-read
 
 # Only dump if csvs have many lines or were produced in last few minutes
 LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv))
@@ -162,6 +173,11 @@ aws s3 cp $EXPORTS_ROOT/$US_LATEST_EXPORT_PATH_CTP.csv s3://$S3_URL/csv/$US_LATE
 --content-type=text/csv \
 --acl public-read
 
+python manage.py get_ctp_states
+aws s3 cp $EXPORTS_ROOT/$STATES_LATEST_EXPORT_PATH.json s3://$S3_URL/json/$STATES_LATEST_EXPORT_PATH.json \
+--content-type=application/json \
+--acl public-read
+
 ############### NATIONAL FROM NYT ###############
 echo Updating NYT national numbers...
 python manage.py join_us_county_data
@@ -174,6 +190,10 @@ if (("${LINE_COUNT[0]}" > 2)); then
 
   aws s3 cp $EXPORTS_ROOT/$NATIONAL_LATEST_FILENAME.csv s3://$S3_URL/csv/$NATIONAL_LATEST_FILENAME.csv \
   --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/$NATIONAL_LATEST_FILENAME.json s3://$S3_URL/json/$NATIONAL_LATEST_FILENAME.json \
+  --content-type=application/json \
   --acl public-read
 
   aws s3 cp $EXPORTS_ROOT/$NATIONAL_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$NATIONAL_LATEST_FILENAME-$download_datetime.csv \

@@ -7,7 +7,7 @@ from datetime import timedelta
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
 
-from django.db.models import Sum, Count, Max
+from django.db.models import Sum, Count, Max, Avg, F, RowRange, Window
 from django.core.management.base import BaseCommand
 from django.core.exceptions import ObjectDoesNotExist
 from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death, StatewideCasesBySampleDate, StatewideTestsDate
@@ -230,12 +230,14 @@ class Command(BaseCommand):
 
                 new_state_tests = self.parse_comma_int(c['Completed tests reported from the MDH Public Health Lab (daily)'])
                 new_external_tests = self.parse_comma_int(c['Completed tests reported from external laboratories (daily)'])
+                new_tests = new_state_tests + new_external_tests
                 total_tests = self.parse_comma_int(c['Total approximate number of completed tests '])
 
                 std = StatewideTestsDate(
                     reported_date=reported_date,
                     new_state_tests=new_state_tests,
                     new_external_tests=new_external_tests,
+                    new_tests=new_tests,
                     total_tests=total_tests,
                     update_date=update_date,
                     scrape_date=today,
@@ -244,7 +246,21 @@ class Command(BaseCommand):
             print('Adding {} records of test timeseries data'.format(len(test_objs)))
             StatewideTestsDate.objects.bulk_create(test_objs)
 
-        msg_output = '*{}* total tests completed (*{}* today)\n\n'.format(f'{total_tests:,}', self.change_sign(new_state_tests + new_external_tests))
+            # calculate/add rolling average
+            print('Calculating rolling averages ...')
+            tests_added = StatewideTestsDate.objects.filter(scrape_date=today).annotate(
+                new_tests_rolling_temp=Window(
+                    expression=Avg('new_tests'),
+                    order_by=F('scrape_date').asc(),
+                    frame=RowRange(start=-6,end=0)
+                )
+            )
+            for t in tests_added:
+                t.new_tests_rolling = t.new_tests_rolling_temp
+                t.save()
+
+        msg_output = '*{}* total tests completed (*{}* today)\n\n'.format(f'{total_tests:,}', self.change_sign(new_tests))
+        print(msg_output)
 
         return msg_output
 
@@ -281,13 +297,16 @@ class Command(BaseCommand):
         mdh_tests = 0
         private_tests = 0
 
-        tests_table = table = soup.find("table", {'id': 'labtable'})
-        tests_timeseries = self.full_table_parser(tests_table)
+
+        output['total_statewide_tests'] = self.parse_comma_int(soup.find('strong', text=re.compile('Total approximate number of completed tests')).find_parent('p').text.replace('Total approximate number of completed tests:\xa0', '').strip())
+        # newly_reported_cases_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported cases')).find_parent('td').find('strong').text)
         # print(int(tests_timeseries[len(tests_timeseries) - 1]['Total approximate number of completed tests '].replace(',', '')))
 
         # mike, I am truly sorry for this - TO
-        output['total_statewide_tests'] = int(tests_timeseries[len(tests_timeseries) - 1]['Total approximate number of completed tests '].replace(',', ''))
+        # output['total_statewide_tests'] = int(tests_timeseries[len(tests_timeseries) - 1]['Total approximate number of completed tests '].replace(',', ''))
 
+        tests_table = table = soup.find("table", {'id': 'labtable'})
+        tests_timeseries = self.full_table_parser(tests_table)
         for c in tests_timeseries:
             if c['Date reported to MDH'] == 'Unknown/missing':
                 continue
@@ -563,11 +582,11 @@ class Command(BaseCommand):
         if not html:
             slack_latest('WARNING: Scraper error. Not proceeding.', '#robot-dojo')
         else:
-            # Save a copy of HTML
-            now = datetime.datetime.now().strftime('%Y-%m-%d_%H%M')
-            with open(os.path.join(settings.BASE_DIR, 'exports', 'html', 'situation_{}.html').format(now), 'wb') as html_file:
-                html_file.write(html)
-                html_file.close()
+            # DEPRECATED -- HANDLED IN .SH FILE... Save a copy of HTML
+            # now = datetime.datetime.now().strftime('%Y-%m-%d_%H%M')
+            # with open(os.path.join(settings.BASE_DIR, 'exports', 'html', 'situation_{}.html').format(now), 'wb') as html_file:
+            #     html_file.write(html)
+            #     html_file.close()
 
             previous_statewide_cases = StatewideTotalDate.objects.order_by('-scrape_date').first().cumulative_positive_tests
 
@@ -585,6 +604,7 @@ class Command(BaseCommand):
             statewide_msg_output = self.update_statewide_records(statewide_data, update_date)
 
             self.get_statewide_cases_timeseries(soup, update_date)
+            # test_msg_output = ''
             test_msg_output = self.get_statewide_tests_timeseries(soup, update_date)
 
             age_data = self.get_age_data(soup)

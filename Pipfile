@@ -27,6 +27,7 @@ gitpython = "*"
 lxml = "*"
 django-extensions = "*"
 boto3 = "*"
+geojson = "*"
 
 [requires]
 python_version = "3.8"
