@@ -82,9 +82,9 @@ class Command(BaseCommand):
         pop_df = pd.DataFrame(self.STATE_POPS)
         ctp_df = pd.DataFrame(ctp)
         merged = pop_df.merge(ctp_df, how="left", left_on="state_abbr", right_on="state")
-        merged['cases_p_100k'] = round(merged['positive'] / merged['pop'], 1)
-        merged['deaths_p_100k'] = round(merged['death'] / merged['pop'], 1)
-        merged['tests_p_100k'] = round(merged['totalTestResults'] / merged['pop'], 3)
+        merged['cases_p_100k'] = round((merged['positive'] / merged['pop']) * 100000, 1)
+        merged['deaths_p_100k'] = round((merged['death'] / merged['pop']) * 100000, 1)
+        merged['tests_p_100k'] = round((merged['totalTestResults'] / merged['pop']) * 100000, 1)
         merged['pct_tests_pos'] = round(merged['positive'] / merged['totalTestResults'], 3)
 
         merged.rename(columns={'positive': 'cases', 'death': 'deaths', 'totalTestResults': 'total_tests', 'dateModified': 'last_update'}, inplace=True)
