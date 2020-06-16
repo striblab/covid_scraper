@@ -1,10 +1,12 @@
 import os
 import csv
+import json
 import datetime
 from datetime import timedelta, date
 
 from django.conf import settings
-from django.db.models import Min, Max
+from django.db.models import Sum, Min, Max, Avg, F, RowRange, ValueRange, Window, Case, When, Value, FloatField
+from django.db.models.functions import Lead
 from django.core.management.base import BaseCommand
 from stats.models import County, CountyTestDate, StatewideTotalDate
 
@@ -101,10 +103,36 @@ class Command(BaseCommand):
 
     def dump_tall_timeseries(self):
         print('Dumping tall county timeseries...')
-        fieldnames = ['date', 'county', 'daily_cases', 'cumulative_cases', 'daily_deaths', 'cumulative_deaths']
+        fieldnames = ['date', 'county', 'daily_cases', 'cumulative_cases', 'daily_deaths', 'cumulative_deaths', 'cases_rolling',
+'deaths_rolling', 'pct_chg', 'pct_chg_7day']
         rows = []
 
-        for c in CountyTestDate.objects.all().values(
+        # TODO: rolling averages
+        for c in CountyTestDate.objects.all().annotate(
+            cases_rolling=Window(
+                expression=Avg('daily_count'),
+                order_by=F('scrape_date').asc(),
+                frame=RowRange(start=-6,end=0)
+            )
+        ).annotate(
+            deaths_rolling=Window(
+                expression=Avg('daily_deaths'),
+                order_by=F('scrape_date').asc(),
+                frame=RowRange(start=-6,end=0)
+            )
+        ).annotate(
+            pct_chg=Case(
+                When(cumulative_count__gt=0, then=F('daily_count')  * 1.0 / F('cumulative_count')),
+                default=Value(0),
+                output_field=FloatField()
+            )
+        ).annotate(
+            pct_chg_7day=Window(
+                expression=Avg('pct_chg'),
+                order_by=F('scrape_date').asc(),
+                frame=RowRange(start=-6,end=0)
+            )
+        ).values(
             'scrape_date',
             'update_date',
             'county__name',
@@ -112,6 +140,10 @@ class Command(BaseCommand):
             'cumulative_count',
             'daily_deaths',
             'cumulative_deaths',
+            'cases_rolling',
+            'deaths_rolling',
+            'pct_chg',
+            'pct_chg_7day'
         ).order_by('scrape_date', 'county__name'):
             # print(c['update_date'], datetime.date.today(), c['update_date'] == datetime.date.today())
             # if not c['update_date'] or c['update_date'] <= datetime.date.today():
@@ -119,13 +151,25 @@ class Command(BaseCommand):
             #     pass  # Ignore if there's no new results for today
             # else:
             #     # print(c.scrape_date, c.county.name, c.cumulative_count)
+                # print(c['county__name'], c['daily_count'], c['pct_chg'], c['pct_chg_7day'])
+                if c['cumulative_count'] < 100:
+                    pct_chg = None
+                    pct_chg_7day = None
+                else:
+                    pct_chg = round(c['pct_chg'], 3)
+                    pct_chg_7day = round(c['pct_chg_7day'], 3)
+
                 row = {
                     'date': c['scrape_date'].strftime('%Y-%m-%d'),
                     'county': c['county__name'],
                     'daily_cases': c['daily_count'],
                     'cumulative_cases': c['cumulative_count'],
                     'daily_deaths': c['daily_deaths'],
-                    'cumulative_deaths': c['cumulative_deaths']
+                    'cumulative_deaths': c['cumulative_deaths'],
+                    'cases_rolling': round(c['cases_rolling'], 1),
+                    'deaths_rolling': round(c['deaths_rolling'], 2),
+                    'pct_chg': pct_chg,
+                    'pct_chg_7day': pct_chg_7day,
                 }
                 rows.append(row)
 
@@ -134,6 +178,25 @@ class Command(BaseCommand):
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
+
+        # JSON export: Shorten col names
+        skinny_rows = []
+        for row in rows:
+            skinny_rows.append({
+                'date': row['date'],
+                'county': row['county'],
+                'daily_cases': row['daily_cases'],
+                'cases': row['cumulative_cases'],
+                'daily_deaths': row['daily_deaths'],
+                'deaths': row['cumulative_deaths'],
+                'cases_rolling': row['cases_rolling'],
+                'deaths_rolling': row['deaths_rolling'],
+                'pct_chg': row['pct_chg'],
+                'pct_chg_7day': row['pct_chg_7day'],
+            })
+
+        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_county_timeseries.json'), 'w') as jsonfile:
+            jsonfile.write(json.dumps(skinny_rows))
 
     def handle(self, *args, **options):
         today_statewide = StatewideTotalDate.objects.filter(scrape_date=datetime.date.today())

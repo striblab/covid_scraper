@@ -134,6 +134,10 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
+  aws s3 cp $EXPORTS_ROOT/mn_county_timeseries.json s3://$S3_URL/json/mn_county_timeseries.json \
+  --content-type=application/json \
+  --acl public-read
+
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TIMESERIES_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
