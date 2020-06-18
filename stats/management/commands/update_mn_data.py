@@ -604,11 +604,11 @@ class Command(BaseCommand):
             statewide_msg_output = self.update_statewide_records(statewide_data, update_date)
 
             self.get_statewide_cases_timeseries(soup, update_date)
-            # test_msg_output = ''
             test_msg_output = self.get_statewide_tests_timeseries(soup, update_date)
 
+            # TODO: new updates herey
+
             age_data = self.get_age_data(soup)
-            # print(age_data)
             age_msg_output = self.update_age_records(age_data)
 
             if bool_updated_today:

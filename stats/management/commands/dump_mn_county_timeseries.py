@@ -104,74 +104,92 @@ class Command(BaseCommand):
     def dump_tall_timeseries(self):
         print('Dumping tall county timeseries...')
         fieldnames = ['date', 'county', 'daily_cases', 'cumulative_cases', 'daily_deaths', 'cumulative_deaths', 'cases_rolling',
-'deaths_rolling', 'pct_chg', 'pct_chg_7day']
+'deaths_rolling', 'pct_chg', 'pct_chg_7day', 'cases_total_weekago', 'cases_weekly_pct_chg',]
         rows = []
 
-        # TODO: rolling averages
-        for c in CountyTestDate.objects.all().annotate(
-            cases_rolling=Window(
-                expression=Avg('daily_count'),
-                order_by=F('scrape_date').asc(),
-                frame=RowRange(start=-6,end=0)
-            )
-        ).annotate(
-            deaths_rolling=Window(
-                expression=Avg('daily_deaths'),
-                order_by=F('scrape_date').asc(),
-                frame=RowRange(start=-6,end=0)
-            )
-        ).annotate(
-            pct_chg=Case(
-                When(cumulative_count__gt=0, then=F('daily_count')  * 1.0 / F('cumulative_count')),
-                default=Value(0),
-                output_field=FloatField()
-            )
-        ).annotate(
-            pct_chg_7day=Window(
-                expression=Avg('pct_chg'),
-                order_by=F('scrape_date').asc(),
-                frame=RowRange(start=-6,end=0)
-            )
-        ).values(
-            'scrape_date',
-            'update_date',
-            'county__name',
-            'daily_count',
-            'cumulative_count',
-            'daily_deaths',
-            'cumulative_deaths',
-            'cases_rolling',
-            'deaths_rolling',
-            'pct_chg',
-            'pct_chg_7day'
-        ).order_by('scrape_date', 'county__name'):
-            # print(c['update_date'], datetime.date.today(), c['update_date'] == datetime.date.today())
-            # if not c['update_date'] or c['update_date'] <= datetime.date.today():
-            if c['scrape_date'] < datetime.date.today() or c['update_date'] == datetime.date.today():
-            #     pass  # Ignore if there's no new results for today
-            # else:
-            #     # print(c.scrape_date, c.county.name, c.cumulative_count)
-                # print(c['county__name'], c['daily_count'], c['pct_chg'], c['pct_chg_7day'])
-                if c['cumulative_count'] < 100:
-                    pct_chg = None
-                    pct_chg_7day = None
-                else:
-                    pct_chg = round(c['pct_chg'], 3)
-                    pct_chg_7day = round(c['pct_chg_7day'], 3)
+        # TODO: county by county
+        for county in County.objects.all():
+            for c in CountyTestDate.objects.filter(county=county).annotate(
+                cases_rolling=Window(
+                    expression=Avg('daily_count'),
+                    order_by=F('scrape_date').asc(),
+                    frame=RowRange(start=-6,end=0)
+                )
+            ).annotate(
+                deaths_rolling=Window(
+                    expression=Avg('daily_deaths'),
+                    order_by=F('scrape_date').asc(),
+                    frame=RowRange(start=-6,end=0)
+                )
+            ).annotate(
+                cases_total_weekago=Window(
+                    expression=Lead('cumulative_count', offset=7, default=0),
+                    order_by=F('scrape_date').desc()
+                )
+            ).annotate(
+                cases_weekly_pct_chg=Case(
+                    When(cases_total_weekago__gt=0, then=(F('cumulative_count') - F('cases_total_weekago') * 1.0) / F('cases_total_weekago')),
+                    default=Value(0),
+                    output_field=FloatField()
+                )
+            ).annotate(
+                pct_chg=Case(
+                    When(cumulative_count__gt=0, then=F('daily_count')  * 1.0 / F('cumulative_count')),
+                    default=Value(0),
+                    output_field=FloatField()
+                )
+            ).annotate(
+                pct_chg_7day=Window(
+                    expression=Avg('pct_chg'),
+                    order_by=F('scrape_date').asc(),
+                    frame=RowRange(start=-6,end=0)
+                )
+            ).values(
+                'scrape_date',
+                'update_date',
+                'county__name',
+                'daily_count',
+                'cumulative_count',
+                'daily_deaths',
+                'cumulative_deaths',
+                'cases_rolling',
+                'deaths_rolling',
+                'pct_chg',
+                'pct_chg_7day',
+                'cases_total_weekago',
+                'cases_weekly_pct_chg',
+            ).order_by('scrape_date', 'county__name'):
+                # print(c['update_date'], datetime.date.today(), c['update_date'] == datetime.date.today())
+                # if not c['update_date'] or c['update_date'] <= datetime.date.today():
+                if c['scrape_date'] < datetime.date.today() or c['update_date'] == datetime.date.today():
+                #     pass  # Ignore if there's no new results for today
+                # else:
+                #     # print(c.scrape_date, c.county.name, c.cumulative_count)
+                    # print(c['county__name'], c['daily_count'], c['pct_chg'], c['pct_chg_7day'])
+                    if c['cumulative_count'] < 100:
+                        pct_chg = None
+                        pct_chg_7day = None
+                        cases_weekly_pct_chg = None
+                    else:
+                        pct_chg = round(c['pct_chg'], 3)
+                        pct_chg_7day = round(c['pct_chg_7day'], 3)
+                        cases_weekly_pct_chg = round(c['cases_weekly_pct_chg'], 3)
 
-                row = {
-                    'date': c['scrape_date'].strftime('%Y-%m-%d'),
-                    'county': c['county__name'],
-                    'daily_cases': c['daily_count'],
-                    'cumulative_cases': c['cumulative_count'],
-                    'daily_deaths': c['daily_deaths'],
-                    'cumulative_deaths': c['cumulative_deaths'],
-                    'cases_rolling': round(c['cases_rolling'], 1),
-                    'deaths_rolling': round(c['deaths_rolling'], 2),
-                    'pct_chg': pct_chg,
-                    'pct_chg_7day': pct_chg_7day,
-                }
-                rows.append(row)
+                    row = {
+                        'date': c['scrape_date'].strftime('%Y-%m-%d'),
+                        'county': c['county__name'],
+                        'daily_cases': c['daily_count'],
+                        'cumulative_cases': c['cumulative_count'],
+                        'daily_deaths': c['daily_deaths'],
+                        'cumulative_deaths': c['cumulative_deaths'],
+                        'cases_rolling': round(c['cases_rolling'], 1),
+                        'deaths_rolling': round(c['deaths_rolling'], 2),
+                        'pct_chg': pct_chg,
+                        'pct_chg_7day': pct_chg_7day,
+                        'cases_total_weekago': c['cases_total_weekago'],
+                        'cases_weekly_pct_chg': cases_weekly_pct_chg,
+                    }
+                    rows.append(row)
 
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_county_timeseries_tall.csv'), 'w') as csvfile:
 
@@ -193,6 +211,8 @@ class Command(BaseCommand):
                 'deaths_rolling': row['deaths_rolling'],
                 'pct_chg': row['pct_chg'],
                 'pct_chg_7day': row['pct_chg_7day'],
+                'cases_total_weekago': row['cases_total_weekago'],
+                'cases_weekly_pct_chg': row['cases_weekly_pct_chg'],
             })
 
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_county_timeseries.json'), 'w') as jsonfile:
