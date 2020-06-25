@@ -80,12 +80,20 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
+  aws s3 cp $EXPORTS_ROOT/$AGES_LATEST_FILENAME.json s3://$S3_URL/json/$AGES_LATEST_FILENAME.json \
+  --content-type=application/json \
+  --acl public-read
+
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$AGES_LATEST_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$DEATH_AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/$DEATH_AGES_LATEST_FILENAME.csv \
   --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/$DEATH_AGES_LATEST_FILENAME.json s3://$S3_URL/json/$DEATH_AGES_LATEST_FILENAME.json \
+  --content-type=application/json \
   --acl public-read
 
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$DEATH_AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$DEATH_AGES_LATEST_FILENAME-$download_datetime.csv \

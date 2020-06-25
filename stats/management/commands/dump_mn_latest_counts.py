@@ -136,6 +136,7 @@ class Command(BaseCommand):
             total_death_count = topline_data.cumulative_statewide_deaths
 
             age_groups = AgeGroupPop.objects.all().order_by('pk')
+            rows = []
             # age_groups = StatewideAgeDate.objects.filter(scrape_date=datetime.date.today()).order_by('pk')
             for a in age_groups:
                 # print(a.age_group)
@@ -143,8 +144,7 @@ class Command(BaseCommand):
                 lr = StatewideAgeDate.objects.get(age_group=a.age_group, scrape_date=max_date)
             # for lr in latest_records:
 
-
-                writer.writerow(self.build_ages_row(lr, total_case_count, total_death_count, a.pct_pop))
+                rows.append(self.build_ages_row(lr, total_case_count, total_death_count, a.pct_pop))
 
             missing = StatewideAgeDate.objects.get(age_group='Unknown/missing', scrape_date=max_date)
             # writer.writerow({
@@ -155,7 +155,12 @@ class Command(BaseCommand):
             #     'pct_of_deaths': missing.deaths_pct,
             #     'pct_state_pop': 'N/A'
             # })
-            writer.writerow(self.build_ages_row(missing, total_case_count, total_death_count, 'N/A'))
+            rows.append(self.build_ages_row(missing, total_case_count, total_death_count, 'N/A'))
+
+            writer.writerows(rows)
+
+            with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_ages_latest.json'), 'w') as jsonfile:
+                jsonfile.write(json.dumps(rows))
 
     def dump_detailed_death_ages_latest(self):
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_death_ages_detailed_latest.csv'), 'w') as csvfile:
@@ -176,13 +181,18 @@ class Command(BaseCommand):
             for ag in age_group_totals:
                 ag['age_start_int'] = int(re.match(r'([0-9]+)', ag['age_group']).group(0))
 
+            rows = []
             for ag in sorted(age_group_totals, key = lambda i: i['age_start_int']):
                 # print(ag['age_start_int'])
-                writer.writerow({
+                rows.append({
                     'age_group': ag['age_group'],
                     'num_deaths': ag['total'],
                     'pct_of_deaths': self.round_special(100 * (ag['total'] / total_deaths)),
                 })
+            writer.writerows(rows)
+
+            with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_death_ages_detailed_latest.json'), 'w') as jsonfile:
+                jsonfile.write(json.dumps(rows))
 
     def handle(self, *args, **options):
         self.dump_county_latest()
