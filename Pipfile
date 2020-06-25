@@ -1,0 +1,33 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+ipython = "*"
+awscli = "*"
+jupyter = "*"
+pandas = "*"
+geopandas = "*"
+matplotlib = "*"
+descartes = "*"
+geoplot = "*"
+pillow = "*"
+django-pandas = "*"
+django-model-utils = "*"
+altair = "*"
+
+[packages]
+django = "*"
+requests = "*"
+beautifulsoup4 = "*"
+psycopg2-binary = "*"
+pandas = "*"
+gitpython = "*"
+lxml = "*"
+django-extensions = "*"
+boto3 = "*"
+geojson = "*"
+
+[requires]
+python_version = "3.8"
