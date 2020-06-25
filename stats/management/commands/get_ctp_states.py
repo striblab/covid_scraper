@@ -100,6 +100,7 @@ class Command(BaseCommand):
             'total_tests',
             'tests_p_100k',
             'pct_tests_pos',
+            'pop',
             'last_update'
         ]]
 

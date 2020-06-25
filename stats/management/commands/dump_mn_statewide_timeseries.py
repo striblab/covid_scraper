@@ -8,7 +8,7 @@ from django.conf import settings
 from django.db.models import Min, Max, Avg, F, RowRange, Window
 from django.core.management.base import BaseCommand
 # from django.db.models import Avg, F, RowRange, Window
-from stats.models import StatewideTotalDate, StatewideCasesBySampleDate, StatewideTestsDate
+from stats.models import StatewideTotalDate, StatewideCasesBySampleDate, StatewideTestsDate, StatewideDeathsDate
 
 
 class Command(BaseCommand):
@@ -32,6 +32,15 @@ class Command(BaseCommand):
         for t in tests_reported_dates:
             latest_record = StatewideTestsDate.objects.filter(reported_date=t).values().latest('scrape_date')
             tests_timeseries_values[t] = latest_record
+
+        # Deaths: Get max scrape date for each real date
+        deaths_timeseries_values = {}
+        deaths_reported_dates = StatewideDeathsDate.objects.all().values_list('reported_date', flat=True).distinct()
+        # death_records = StatewideDeathsDate.objects.filter(reported_date__in=deaths_reported_dates).order_by('scrape_date')
+        # TODO: How to calculate rolling averages
+        for t in deaths_reported_dates:
+            latest_record = StatewideDeathsDate.objects.filter(reported_date=t).values().latest('scrape_date')
+            deaths_timeseries_values[t] = latest_record
         # print(tests_timeseries_values)
 
         # TODO: add rolling average
@@ -52,12 +61,12 @@ class Command(BaseCommand):
                 order_by=F('scrape_date').asc(),
                 frame=RowRange(start=-6,end=0)
             )
-        ).annotate(
-            new_deaths_rolling=Window(
-                expression=Avg('new_deaths'),
-                order_by=F('scrape_date').asc(),
-                frame=RowRange(start=-6,end=0)
-            )
+        # ).annotate(
+        #     new_deaths_rolling=Window(
+        #         expression=Avg('new_deaths'),
+        #         order_by=F('scrape_date').asc(),
+        #         frame=RowRange(start=-6,end=0)
+        #     )
         ).values()
         for s in topline_data:
         # for s in StatewideTotalDate.objects.all().values():
@@ -86,7 +95,14 @@ class Command(BaseCommand):
                 #     new_deaths = topline_data['cumulative_statewide_deaths'] - previous_total_deaths
                 # else:
                 #     print('yes deaths')
-                new_deaths = topline_data['new_deaths']
+                if topline_data['cumulative_statewide_deaths'] > 0:
+                    death_data = deaths_timeseries_values[current_date]
+                    new_deaths = death_data['new_deaths']
+                    new_deaths_rolling = round(death_data['new_deaths_rolling'], 1)
+                else:
+                    new_deaths = 0
+                    new_deaths_rolling = ''
+
                 previous_total_deaths = topline_data['cumulative_statewide_deaths']
 
                 if current_date in cases_timeseries_values:
@@ -105,6 +121,7 @@ class Command(BaseCommand):
                 if current_date <= datetime.date(2020, 3, 28):  # Temp conditional for old test dates
                     new_tests = 0
                     total_tests = 0
+                    daily_pct_positive = ''
                 else:
                     if current_date - timedelta(days=1) in tests_timeseries_values:
                         tr = tests_timeseries_values[current_date - timedelta(days=1)]
@@ -122,6 +139,9 @@ class Command(BaseCommand):
                     else:
                         new_tests = 0
                         total_tests = previous_total_tests
+
+                    if new_tests > 0:
+                        daily_pct_positive = round((topline_data['cases_daily_change']*1.0) / new_tests, 3)
 
                 previous_total_tests = total_tests
 
@@ -147,11 +167,12 @@ class Command(BaseCommand):
                     'currently_in_icu': topline_data['currently_in_icu'],
                     'total_statewide_deaths': topline_data['cumulative_statewide_deaths'],
                     'new_statewide_deaths': new_deaths,
-                    'new_statewide_deaths_rolling': round(topline_data['new_deaths_rolling'], 1),
+                    'new_statewide_deaths_rolling': new_deaths_rolling,
                     'total_statewide_recoveries': topline_data['cumulative_statewide_recoveries'],
                     'total_completed_tests': '' if current_date <= datetime.date(2020, 3, 28) else total_tests,
                     'new_completed_tests': '' if current_date <= datetime.date(2020, 3, 28) else new_tests,
                     'new_completed_tests_rolling': '' if current_date <= datetime.date(2020, 3, 28) else round(new_tests_rolling, 1),
+                    'daily_pct_positive': daily_pct_positive,
                 }
                 rows.append(row)
                 # writer.writerow(row)
@@ -159,7 +180,7 @@ class Command(BaseCommand):
             current_date += timedelta(days=1)
 
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_timeseries.csv'), 'w') as csvfile:
-            fieldnames = ['date', 'total_confirmed_cases', 'cases_daily_change', 'cases_daily_change_rolling', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_total_sample_date', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'total_statewide_deaths', 'new_statewide_deaths', 'new_statewide_deaths_rolling', 'total_statewide_recoveries', 'total_completed_tests' , 'new_completed_tests', 'new_completed_tests_rolling']
+            fieldnames = ['date', 'total_confirmed_cases', 'cases_daily_change', 'cases_daily_change_rolling', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_total_sample_date', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'total_statewide_deaths', 'new_statewide_deaths', 'new_statewide_deaths_rolling', 'total_statewide_recoveries', 'total_completed_tests' , 'new_completed_tests', 'new_completed_tests_rolling', 'daily_pct_positive']
 
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()

@@ -10,7 +10,7 @@ from urllib.request import urlopen
 from django.db.models import Sum, Count, Max, Avg, F, RowRange, Window
 from django.core.management.base import BaseCommand
 from django.core.exceptions import ObjectDoesNotExist
-from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death, StatewideCasesBySampleDate, StatewideTestsDate
+from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death, StatewideCasesBySampleDate, StatewideTestsDate, StatewideDeathsDate
 from stats.utils import slack_latest
 
 from django.conf import settings
@@ -211,7 +211,7 @@ class Command(BaseCommand):
     def get_statewide_tests_timeseries(self, soup, update_date):
         print('Parsing statewide tests timeseries...')
 
-        tests_table = table = soup.find("table", {'id': 'labtable'})
+        tests_table = soup.find("table", {'id': 'labtable'})
         tests_timeseries = self.full_table_parser(tests_table)
         # print(tests_timeseries)
 
@@ -251,7 +251,7 @@ class Command(BaseCommand):
             tests_added = StatewideTestsDate.objects.filter(scrape_date=today).annotate(
                 new_tests_rolling_temp=Window(
                     expression=Avg('new_tests'),
-                    order_by=F('scrape_date').asc(),
+                    order_by=F('reported_date').asc(),
                     frame=RowRange(start=-6,end=0)
                 )
             )
@@ -263,6 +263,59 @@ class Command(BaseCommand):
         print(msg_output)
 
         return msg_output
+
+
+    def get_statewide_deaths_timeseries(self, soup, update_date):
+          print('Parsing statewide deaths timeseries...')
+
+          deaths_table = table = soup.find("table", {'id': 'deathtable'})
+          deaths_timeseries = self.full_table_parser(deaths_table)
+          # print(deaths_timeseries)
+
+          if len(deaths_timeseries) > 0:
+              today = datetime.date.today()
+              # Remove old records from today
+              existing_today_records = StatewideDeathsDate.objects.filter(scrape_date=today)
+              print('Removing {} records of deaths timeseries data'.format(existing_today_records.count()))
+              existing_today_records.delete()
+              death_objs = []
+              for c in deaths_timeseries:
+                  if c['Date reported'] == 'Unknown/missing':
+                      reported_date = None
+                  else:
+                      reported_date = self.parse_mdh_date(c['Date reported'], today)
+
+                  new_deaths = self.parse_comma_int(c['Newly reported deaths (daily)'])
+                  total_deaths = self.parse_comma_int(c['Total deaths'])
+
+                  std = StatewideDeathsDate(
+                      reported_date=reported_date,
+                      new_deaths=new_deaths,
+                      total_deaths=total_deaths,
+                      update_date=update_date,
+                      scrape_date=today,
+                  )
+                  death_objs.append(std)
+              print('Adding {} records of deaths timeseries data'.format(len(death_objs)))
+              StatewideDeathsDate.objects.bulk_create(death_objs)
+
+              # calculate/add rolling average
+              print('Calculating rolling averages ...')
+              deaths_added = StatewideDeathsDate.objects.filter(scrape_date=today).annotate(
+                  new_deaths_rolling_temp=Window(
+                      expression=Avg('new_deaths'),
+                      order_by=F('reported_date').asc(),
+                      frame=RowRange(start=-6,end=0)
+                  )
+              )
+              for t in deaths_added:
+                  t.new_deaths_rolling = t.new_deaths_rolling_temp
+                  t.save()
+
+          msg_output = '*{}* total deaths (*{}* reported today)\n\n'.format(f'{total_deaths:,}', self.change_sign(new_deaths))
+          print(msg_output)
+
+          return msg_output
 
 
     # TODO: Hospitalization timeseries table
@@ -505,7 +558,7 @@ class Command(BaseCommand):
             current_statewide_observation.cases_newly_reported = statewide_data['cases_newly_reported']
             current_statewide_observation.removed_cases = statewide_data['removed_cases']
 
-            current_statewide_observation.new_deaths = deaths_daily_change
+            current_statewide_observation.deaths_daily_change = deaths_daily_change
 
             current_statewide_observation.cumulative_completed_tests = total_statewide_tests
             current_statewide_observation.cumulative_completed_mdh = statewide_data['cumulative_completed_mdh']
@@ -528,7 +581,7 @@ class Command(BaseCommand):
                     cases_newly_reported=statewide_data['cases_newly_reported'],
                     removed_cases=statewide_data['removed_cases'],
                     # new_cases=statewide_data['new_cases'],
-                    new_deaths=deaths_daily_change,
+                    deaths_daily_change=deaths_daily_change,
                     # cumulative_positive_tests=statewide_data['cumulative_positive_tests'],
                     cumulative_completed_tests=total_statewide_tests,
                     cumulative_completed_mdh=statewide_data['cumulative_completed_mdh'],
@@ -555,7 +608,7 @@ class Command(BaseCommand):
         new_tests = current_statewide_observation.cumulative_completed_tests - yesterday_results.cumulative_completed_tests
 
         print('Change found, composing statewide Slack message...')
-        msg_output += '*{}* deaths total (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_statewide_deaths:,}', self.change_sign(deaths_daily_change))
+        # msg_output += '*{}* deaths total (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_statewide_deaths:,}', self.change_sign(deaths_daily_change))
         msg_output += '*{}* cases total (change of *{}* today, *{}* newly reported, *{}* removed)\n'.format(f'{current_statewide_observation.cumulative_positive_tests:,}', self.change_sign(cases_daily_change), f'{current_statewide_observation.cases_newly_reported:,}', f'{current_statewide_observation.removed_cases:,}')
         msg_output += '*{}* currently hospitalized (*{}* today)\n'.format(f'{current_statewide_observation.currently_hospitalized:,}', self.change_sign(hospitalizations_change))
         msg_output += '*{}* currently in ICU (*{}* today)\n'.format(f'{current_statewide_observation.currently_in_icu:,}', self.change_sign(icu_change))
@@ -605,6 +658,7 @@ class Command(BaseCommand):
 
             self.get_statewide_cases_timeseries(soup, update_date)
             test_msg_output = self.get_statewide_tests_timeseries(soup, update_date)
+            death_msg_output = self.get_statewide_deaths_timeseries(soup, update_date)
 
             # TODO: new updates herey
 
@@ -618,7 +672,7 @@ class Command(BaseCommand):
 
                 # existing_today_deaths, bool_yesterday = self.get_existing_recent_deaths_records()
                 # print(existing_today_deaths, bool_yesterday)
-                death_msg_output = self.load_recent_deaths(recent_deaths_data)
+                self.load_recent_deaths(recent_deaths_data)
 
             county_data = self.get_county_data(soup)
             county_msg_output = self.update_county_records(county_data, update_date)
@@ -629,7 +683,7 @@ class Command(BaseCommand):
                 # new_statewide_cases = statewide_data['cumulative_positive_tests'] - previous_statewide_cases
                 # slack_header = '*{} new cases announced statewide.*\n\n'.format(new_statewide_cases)
                 # slack_latest(statewide_msg_output, '#virus')
-                slack_latest(statewide_msg_output + test_msg_output + county_msg_output, '#virus')
+                slack_latest(statewide_msg_output + death_msg_output + test_msg_output + county_msg_output, '#virus')
                 # slack_latest(statewide_msg_output + county_msg_output, '#covid-tracking')
             else:
                 # slack_latest(statewide_msg_output + county_msg_output, '#robot-dojo')

@@ -8,7 +8,7 @@ from django.conf import settings
 
 from django.db.models import Max, Count
 from django.core.management.base import BaseCommand
-from stats.models import County, AgeGroupPop, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death
+from stats.models import County, AgeGroupPop, CountyTestDate, StatewideAgeDate, StatewideTotalDate, StatewideDeathsDate, Death
 
 
 class Command(BaseCommand):
@@ -70,14 +70,15 @@ class Command(BaseCommand):
             writer.writeheader()
 
             latest = StatewideTotalDate.objects.all().order_by('-last_update').first()
+            latest_deaths = StatewideDeathsDate.objects.filter(scrape_date=latest.scrape_date).order_by('-reported_date').first()
             writer.writerow({
                 'total_confirmed_cases': latest.cumulative_positive_tests,
                 'cases_daily_change': latest.cases_daily_change,
                 'daily_cases_newly_reported': latest.cases_newly_reported,
                 # 'daily_positive_tests': latest.new_cases,
                 'daily_cases_removed': latest.removed_cases,
-                'total_statewide_deaths': latest.cumulative_statewide_deaths,
-                'daily_statewide_deaths': latest.new_deaths,
+                'total_statewide_deaths': latest_deaths.total_deaths,
+                'daily_statewide_deaths': latest_deaths.new_deaths,
                 'total_statewide_recoveries': latest.cumulative_statewide_recoveries,
                 'total_completed_tests': latest.cumulative_completed_tests,
                 # 'total_completed_mdh': latest.cumulative_completed_mdh,

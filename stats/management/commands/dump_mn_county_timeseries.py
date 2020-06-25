@@ -104,7 +104,8 @@ class Command(BaseCommand):
     def dump_tall_timeseries(self):
         print('Dumping tall county timeseries...')
         fieldnames = ['date', 'county', 'daily_cases', 'cumulative_cases', 'daily_deaths', 'cumulative_deaths', 'cases_rolling',
-'deaths_rolling', 'pct_chg', 'pct_chg_7day', 'cases_total_weekago', 'cases_weekly_pct_chg',]
+'deaths_rolling', 'cases_total_weekago', 'cases_weekly_pct_chg',]
+        # 'pct_chg', 'pct_chg_7day', 
         rows = []
 
         # TODO: county by county
@@ -132,18 +133,18 @@ class Command(BaseCommand):
                     default=Value(0),
                     output_field=FloatField()
                 )
-            ).annotate(
-                pct_chg=Case(
-                    When(cumulative_count__gt=0, then=F('daily_count')  * 1.0 / F('cumulative_count')),
-                    default=Value(0),
-                    output_field=FloatField()
-                )
-            ).annotate(
-                pct_chg_7day=Window(
-                    expression=Avg('pct_chg'),
-                    order_by=F('scrape_date').asc(),
-                    frame=RowRange(start=-6,end=0)
-                )
+            # ).annotate(
+            #     pct_chg=Case(
+            #         When(cumulative_count__gt=0, then=F('daily_count')  * 1.0 / F('cumulative_count')),
+            #         default=Value(0),
+            #         output_field=FloatField()
+            #     )
+            # ).annotate(
+            #     pct_chg_7day=Window(
+            #         expression=Avg('pct_chg'),
+            #         order_by=F('scrape_date').asc(),
+            #         frame=RowRange(start=-6,end=0)
+            #     )
             ).values(
                 'scrape_date',
                 'update_date',
@@ -154,8 +155,8 @@ class Command(BaseCommand):
                 'cumulative_deaths',
                 'cases_rolling',
                 'deaths_rolling',
-                'pct_chg',
-                'pct_chg_7day',
+                # 'pct_chg',
+                # 'pct_chg_7day',
                 'cases_total_weekago',
                 'cases_weekly_pct_chg',
             ).order_by('scrape_date', 'county__name'):
@@ -167,12 +168,12 @@ class Command(BaseCommand):
                 #     # print(c.scrape_date, c.county.name, c.cumulative_count)
                     # print(c['county__name'], c['daily_count'], c['pct_chg'], c['pct_chg_7day'])
                     if c['cumulative_count'] < 100:
-                        pct_chg = None
-                        pct_chg_7day = None
+                        # pct_chg = None
+                        # pct_chg_7day = None
                         cases_weekly_pct_chg = None
                     else:
-                        pct_chg = round(c['pct_chg'], 3)
-                        pct_chg_7day = round(c['pct_chg_7day'], 3)
+                        # pct_chg = round(c['pct_chg'], 3)
+                        # pct_chg_7day = round(c['pct_chg_7day'], 3)
                         cases_weekly_pct_chg = round(c['cases_weekly_pct_chg'], 3)
 
                     row = {
@@ -184,8 +185,8 @@ class Command(BaseCommand):
                         'cumulative_deaths': c['cumulative_deaths'],
                         'cases_rolling': round(c['cases_rolling'], 1),
                         'deaths_rolling': round(c['deaths_rolling'], 2),
-                        'pct_chg': pct_chg,
-                        'pct_chg_7day': pct_chg_7day,
+                        # 'pct_chg': pct_chg,
+                        # 'pct_chg_7day': pct_chg_7day,
                         'cases_total_weekago': c['cases_total_weekago'],
                         'cases_weekly_pct_chg': cases_weekly_pct_chg,
                     }
@@ -209,8 +210,8 @@ class Command(BaseCommand):
                 'deaths': row['cumulative_deaths'],
                 'cases_rolling': row['cases_rolling'],
                 'deaths_rolling': row['deaths_rolling'],
-                'pct_chg': row['pct_chg'],
-                'pct_chg_7day': row['pct_chg_7day'],
+                # 'pct_chg': row['pct_chg'],
+                # 'pct_chg_7day': row['pct_chg_7day'],
                 'cases_total_weekago': row['cases_total_weekago'],
                 'cases_weekly_pct_chg': row['cases_weekly_pct_chg'],
             })

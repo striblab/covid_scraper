@@ -49,6 +49,15 @@ class StatewideCasesBySampleDate(models.Model):
     scrape_date = models.DateField()
 
 
+class StatewideDeathsDate(models.Model):
+    reported_date = models.DateField(null=True)
+    new_deaths = models.IntegerField(default=0)
+    new_deaths_rolling = models.FloatField(default=0)
+    total_deaths = models.IntegerField(default=0)
+    update_date = models.DateField(null=True)  # The day MDH said this data was last updated
+    scrape_date = models.DateField()
+
+
 class StatewideTestsDate(models.Model):
     '''used for timeseries and charts'''
     reported_date = models.DateField(null=True)
@@ -70,7 +79,7 @@ class StatewideTotalDate(models.Model):
 
     removed_cases = models.IntegerField(default=0, null=True)
     # new_cases = models.IntegerField(default=0, null=True)  # to deprecate
-    new_deaths = models.IntegerField(default=0, null=True)
+    deaths_daily_change = models.IntegerField(default=0, null=True)
 
     cumulative_positive_tests = models.IntegerField(default=0)
     cumulative_completed_tests = models.IntegerField(default=0)
