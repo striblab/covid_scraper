@@ -228,10 +228,16 @@ class Command(BaseCommand):
                 else:
                     reported_date = self.parse_mdh_date(c['Date reported to MDH'], today)
 
-                new_state_tests = self.parse_comma_int(c['Completed tests reported from the MDH Public Health Lab (daily)'])
-                new_external_tests = self.parse_comma_int(c['Completed tests reported from external laboratories (daily)'])
-                new_tests = new_state_tests + new_external_tests
-                total_tests = self.parse_comma_int(c['Total approximate number of completed tests '])
+                if c['Completed tests reported from the MDH Public Health Lab (daily)'] == '-\xa0\xa0 ':
+                    new_state_tests = 0
+                    new_external_tests = self.parse_comma_int(c['Completed tests reported from external laboratories (daily)'])
+                    new_tests = new_state_tests + new_external_tests
+                    total_tests = self.parse_comma_int(c['Total approximate number of completed tests '])
+                else:
+                    new_state_tests = self.parse_comma_int(c['Completed tests reported from the MDH Public Health Lab (daily)'])
+                    new_external_tests = self.parse_comma_int(c['Completed tests reported from external laboratories (daily)'])
+                    new_tests = new_state_tests + new_external_tests
+                    total_tests = self.parse_comma_int(c['Total approximate number of completed tests '])
 
                 std = StatewideTestsDate(
                     reported_date=reported_date,
@@ -285,7 +291,12 @@ class Command(BaseCommand):
                   else:
                       reported_date = self.parse_mdh_date(c['Date reported'], today)
 
-                  new_deaths = self.parse_comma_int(c['Newly reported deaths (daily)'])
+                # check for hyphen in deaths table, set to null if hyphen exists
+                  if c['Newly reported deaths (daily)'] == '-\xa0\xa0 ':
+                      new_deaths = None
+                  else:
+                      new_deaths = self.parse_comma_int(c['Newly reported deaths (daily)'])
+
                   total_deaths = self.parse_comma_int(c['Total deaths'])
 
                   std = StatewideDeathsDate(
@@ -326,10 +337,26 @@ class Command(BaseCommand):
         hosp_table = soup.find("table", {'id': 'hosptable'})
         hosp_table_latest = self.detail_tables_regex(hosp_table)
 
+        # check for null hospitalizations
+
+        if hosp_table_latest['Hospitalized in ICU (daily)'] == '-\xa0\xa0 ':
+            output['currently_in_icu'] = None
+        else:
+            output['currently_in_icu'] = self.parse_comma_int(hosp_table_latest['Hospitalized in ICU (daily)'])
+
+        if hosp_table_latest['Hospitalized, not in ICU (daily)'] == '-\xa0\xa0 ':
+            output['currently_non_icu_hospitalized'] = None
+        else:
+            output['currently_non_icu_hospitalized'] = self.parse_comma_int(hosp_table_latest['Hospitalized, not in ICU (daily)'])
+
+        if output['currently_in_icu'] == None || output['currently_non_icu_hospitalized'] == None:
+            output['currently_hospitalized'] = None
+        else:
+            output['currently_hospitalized'] = output['currently_in_icu'] + output['currently_non_icu_hospitalized']
+            
         output['cumulative_hospitalized'] = self.parse_comma_int(hosp_table_latest['Total hospitalizations'])
-        output['currently_in_icu'] = self.parse_comma_int(hosp_table_latest['Hospitalized in ICU (daily)'])
-        output['currently_non_icu_hospitalized'] = self.parse_comma_int(hosp_table_latest['Hospitalized, not in ICU (daily)'])  # Not used except to add up
-        output['currently_hospitalized'] = output['currently_in_icu'] + output['currently_non_icu_hospitalized']
+         # Not used except to add up
+
 
         deaths_table = soup.find("table", {'id': 'deathtable'})
         deaths_table_latest = self.detail_tables_regex(deaths_table)
@@ -364,7 +391,10 @@ class Command(BaseCommand):
             if c['Date reported to MDH'] == 'Unknown/missing':
                 continue
             else:
-                mdh_tests = mdh_tests + self.parse_comma_int(c['Completed tests reported from the MDH Public Health Lab (daily)'])
+                if c['Completed tests reported from the MDH Public Health Lab (daily)'] == '-\xa0\xa0 ':
+                    continue
+                else:
+                    mdh_tests = mdh_tests + self.parse_comma_int(c['Completed tests reported from the MDH Public Health Lab (daily)'])
                 private_tests = private_tests + self.parse_comma_int(c['Completed tests reported from external laboratories (daily)'])
 
         output['cumulative_completed_mdh'] = mdh_tests

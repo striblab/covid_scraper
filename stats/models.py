@@ -51,7 +51,7 @@ class StatewideCasesBySampleDate(models.Model):
 
 class StatewideDeathsDate(models.Model):
     reported_date = models.DateField(null=True)
-    new_deaths = models.IntegerField(default=0)
+    new_deaths = models.IntegerField(default=0, null=True)
     new_deaths_rolling = models.FloatField(default=0)
     total_deaths = models.IntegerField(default=0)
     update_date = models.DateField(null=True)  # The day MDH said this data was last updated
@@ -87,8 +87,8 @@ class StatewideTotalDate(models.Model):
     cumulative_completed_private = models.IntegerField(default=0)
 
     cumulative_hospitalized = models.IntegerField(default=0)
-    currently_hospitalized = models.IntegerField(default=0)
-    currently_in_icu = models.IntegerField(default=0)
+    currently_hospitalized = models.IntegerField(default=0, null=True)
+    currently_in_icu = models.IntegerField(default=0, null=True)
 
     cumulative_statewide_deaths = models.IntegerField(default=0)  # Captured separately from county totals, so they may not match
     cumulative_statewide_recoveries = models.IntegerField(default=0)
