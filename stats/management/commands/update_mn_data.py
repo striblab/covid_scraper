@@ -228,7 +228,7 @@ class Command(BaseCommand):
                 else:
                     reported_date = self.parse_mdh_date(c['Date reported to MDH'], today)
 
-                if c['Completed tests reported from the MDH Public Health Lab (daily)'] == '-\xa0\xa0 ':
+                if c['Completed tests reported from the MDH Public Health Lab (daily)'] == '-\xa0\xa0 ' or c['Completed tests reported from the MDH Public Health Lab (daily)'] == '-':
                     new_state_tests = 0
                     new_external_tests = self.parse_comma_int(c['Completed tests reported from external laboratories (daily)'])
                     new_tests = new_state_tests + new_external_tests
@@ -339,21 +339,21 @@ class Command(BaseCommand):
 
         # check for null hospitalizations
 
-        if hosp_table_latest['Hospitalized in ICU (daily)'] == '-\xa0\xa0 ':
+        if hosp_table_latest['Hospitalized in ICU (daily)'] == '-\xa0\xa0 ' or hosp_table_latest['Hospitalized in ICU (daily)'] == '-':
             output['currently_in_icu'] = None
         else:
             output['currently_in_icu'] = self.parse_comma_int(hosp_table_latest['Hospitalized in ICU (daily)'])
 
-        if hosp_table_latest['Hospitalized, not in ICU (daily)'] == '-\xa0\xa0 ':
+        if hosp_table_latest['Hospitalized, not in ICU (daily)'] == '-\xa0\xa0 ' or hosp_table_latest['Hospitalized, not in ICU (daily)'] == '-':
             output['currently_non_icu_hospitalized'] = None
         else:
             output['currently_non_icu_hospitalized'] = self.parse_comma_int(hosp_table_latest['Hospitalized, not in ICU (daily)'])
 
-        if output['currently_in_icu'] == None || output['currently_non_icu_hospitalized'] == None:
+        if output['currently_in_icu'] == None or output['currently_non_icu_hospitalized'] == None:
             output['currently_hospitalized'] = None
         else:
             output['currently_hospitalized'] = output['currently_in_icu'] + output['currently_non_icu_hospitalized']
-            
+
         output['cumulative_hospitalized'] = self.parse_comma_int(hosp_table_latest['Total hospitalizations'])
          # Not used except to add up
 
