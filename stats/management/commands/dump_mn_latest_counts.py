@@ -69,7 +69,7 @@ class Command(BaseCommand):
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
 
-            latest = StatewideTotalDate.objects.all().order_by('-last_update').first()
+            latest = StatewideTotalDate.objects.all().order_by('-scrape_date').first()
             latest_deaths = StatewideDeathsDate.objects.filter(scrape_date=latest.scrape_date).order_by('-reported_date').first()
             writer.writerow({
                 'total_confirmed_cases': latest.cumulative_positive_tests,

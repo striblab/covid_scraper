@@ -140,8 +140,10 @@ class Command(BaseCommand):
                         new_tests = 0
                         total_tests = previous_total_tests
 
-                    if new_tests > 0:
+                    if new_tests > 0 and topline_data['cases_daily_change'] is not None:  # Test for null on cases_daily_change e.g. July 4
                         daily_pct_positive = round((topline_data['cases_daily_change']*1.0) / new_tests, 3)
+                    else:
+                        daily_pct_positive = ''
 
                 previous_total_tests = total_tests
 

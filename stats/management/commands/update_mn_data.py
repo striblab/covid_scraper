@@ -167,7 +167,10 @@ class Command(BaseCommand):
         return False
 
     def parse_comma_int(self, input_str):
-        return int(input_str.replace(',', ''))
+        if input_str == '-':
+            return '-'
+        else:
+            return int(input_str.replace(',', ''))
 
     def parse_mdh_date(self, input_str, today):
         return datetime.datetime.strptime('{}/{}'.format(input_str, today.year), '%m/%d/%Y')
@@ -292,7 +295,7 @@ class Command(BaseCommand):
                       reported_date = self.parse_mdh_date(c['Date reported'], today)
 
                 # check for hyphen in deaths table, set to null if hyphen exists
-                  if c['Newly reported deaths (daily)'] == '-\xa0\xa0 ':
+                  if c['Newly reported deaths (daily)'] in ['-', '-\xa0\xa0 ']:
                       new_deaths = None
                   else:
                       new_deaths = self.parse_comma_int(c['Newly reported deaths (daily)'])
@@ -428,7 +431,9 @@ class Command(BaseCommand):
 
     def change_sign(self, input_int):
         optional_plus = ''
-        if input_int != 0:
+        if not input_int:
+            return '+:shrug:'
+        elif input_int != 0:
             optional_plus = '+'
             if input_int < 0:
                 optional_plus = ':rotating_light: '
@@ -633,8 +638,15 @@ class Command(BaseCommand):
         msg_output = ''
         # if (cases_daily_change != 0):
         # new_deaths = current_statewide_observation.cumulative_statewide_deaths - previous_statewide_results.cumulative_statewide_deaths
-        hospitalizations_change = current_statewide_observation.currently_hospitalized - yesterday_results.currently_hospitalized
-        icu_change = current_statewide_observation.currently_in_icu - yesterday_results.currently_in_icu
+        if yesterday_results.currently_hospitalized:
+            hospitalizations_change = current_statewide_observation.currently_hospitalized - yesterday_results.currently_hospitalized
+        else:
+            hospitalizations_change = None
+
+        if yesterday_results.currently_in_icu:
+            icu_change = current_statewide_observation.currently_in_icu - yesterday_results.currently_in_icu
+        else:
+            icu_change = None
         new_tests = current_statewide_observation.cumulative_completed_tests - yesterday_results.cumulative_completed_tests
 
         print('Change found, composing statewide Slack message...')
