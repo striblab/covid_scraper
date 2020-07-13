@@ -581,6 +581,7 @@ class Command(BaseCommand):
         total_statewide_tests = statewide_data['total_statewide_tests']
         cases_daily_change = statewide_data['cumulative_positive_tests'] - yesterday_results.cumulative_positive_tests
         deaths_daily_change = statewide_data['cumulative_statewide_deaths'] - yesterday_results.cumulative_statewide_deaths
+        hospitalized_total_daily_change = statewide_data['cumulative_hospitalized'] - yesterday_results.cumulative_hospitalized
         try:
             current_statewide_observation = StatewideTotalDate.objects.get(
                 scrape_date=today
@@ -601,6 +602,9 @@ class Command(BaseCommand):
             current_statewide_observation.cumulative_hospitalized = statewide_data['cumulative_hospitalized']
             current_statewide_observation.currently_hospitalized = statewide_data['currently_hospitalized']
             current_statewide_observation.currently_in_icu = statewide_data['currently_in_icu']
+
+            current_statewide_observation.hospitalized_total_daily_change = hospitalized_total_daily_change
+
             current_statewide_observation.cumulative_statewide_deaths = statewide_data['cumulative_statewide_deaths']
             current_statewide_observation.cumulative_statewide_recoveries = statewide_data['cumulative_statewide_recoveries']
 
@@ -624,6 +628,7 @@ class Command(BaseCommand):
                     cumulative_hospitalized=statewide_data['cumulative_hospitalized'],
                     currently_hospitalized=statewide_data['currently_hospitalized'],
                     currently_in_icu=statewide_data['currently_in_icu'],
+                    hospitalized_total_daily_change=hospitalized_total_daily_change,
                     cumulative_statewide_deaths=statewide_data['cumulative_statewide_deaths'],
                     cumulative_statewide_recoveries=statewide_data['cumulative_statewide_recoveries'],
 

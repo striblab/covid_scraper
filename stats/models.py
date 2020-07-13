@@ -90,6 +90,8 @@ class StatewideTotalDate(models.Model):
     currently_hospitalized = models.IntegerField(default=0, null=True)
     currently_in_icu = models.IntegerField(default=0, null=True)
 
+    hospitalized_total_daily_change = models.IntegerField(default=0, null=True)
+
     cumulative_statewide_deaths = models.IntegerField(default=0)  # Captured separately from county totals, so they may not match
     cumulative_statewide_recoveries = models.IntegerField(default=0)
 

@@ -61,12 +61,12 @@ class Command(BaseCommand):
                 order_by=F('scrape_date').asc(),
                 frame=RowRange(start=-6,end=0)
             )
-        # ).annotate(
-        #     new_deaths_rolling=Window(
-        #         expression=Avg('new_deaths'),
-        #         order_by=F('scrape_date').asc(),
-        #         frame=RowRange(start=-6,end=0)
-        #     )
+        ).annotate(
+            hosp_total_daily_rolling=Window(
+                expression=Avg('hospitalized_total_daily_change'),
+                order_by=F('scrape_date').asc(),
+                frame=RowRange(start=-6,end=0)
+            )
         ).values()
         for s in topline_data:
         # for s in StatewideTotalDate.objects.all().values():
@@ -167,6 +167,8 @@ class Command(BaseCommand):
                     'total_hospitalized': topline_data['cumulative_hospitalized'],
                     'currently_hospitalized': topline_data['currently_hospitalized'],
                     'currently_in_icu': topline_data['currently_in_icu'],
+                    'hosp_total_daily_change': topline_data['hospitalized_total_daily_change'],
+                    'hosp_total_daily_rolling': topline_data['hosp_total_daily_rolling'],
                     'total_statewide_deaths': topline_data['cumulative_statewide_deaths'],
                     'new_statewide_deaths': new_deaths,
                     'new_statewide_deaths_rolling': new_deaths_rolling,
@@ -182,7 +184,7 @@ class Command(BaseCommand):
             current_date += timedelta(days=1)
 
         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_timeseries.csv'), 'w') as csvfile:
-            fieldnames = ['date', 'total_confirmed_cases', 'cases_daily_change', 'cases_daily_change_rolling', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_total_sample_date', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'total_statewide_deaths', 'new_statewide_deaths', 'new_statewide_deaths_rolling', 'total_statewide_recoveries', 'total_completed_tests' , 'new_completed_tests', 'new_completed_tests_rolling', 'daily_pct_positive']
+            fieldnames = ['date', 'total_confirmed_cases', 'cases_daily_change', 'cases_daily_change_rolling', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_total_sample_date', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'hosp_total_daily_change', 'hosp_total_daily_rolling', 'total_statewide_deaths', 'new_statewide_deaths', 'new_statewide_deaths_rolling', 'total_statewide_recoveries', 'total_completed_tests' , 'new_completed_tests', 'new_completed_tests_rolling', 'daily_pct_positive']
 
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
