@@ -104,8 +104,8 @@ class Command(BaseCommand):
     def dump_tall_timeseries(self):
         print('Dumping tall county timeseries...')
         fieldnames = ['date', 'county', 'daily_cases', 'cumulative_cases', 'daily_deaths', 'cumulative_deaths', 'cases_rolling',
-'deaths_rolling', 'cases_total_weekago', 'cases_weekly_pct_chg',]
-        # 'pct_chg', 'pct_chg_7day', 
+'deaths_rolling', 'cases_weekly_chg', 'cases_weekly_pct_chg',]
+        # 'pct_chg', 'pct_chg_7day',
         rows = []
 
         # TODO: county by county
@@ -187,7 +187,8 @@ class Command(BaseCommand):
                         'deaths_rolling': round(c['deaths_rolling'], 2),
                         # 'pct_chg': pct_chg,
                         # 'pct_chg_7day': pct_chg_7day,
-                        'cases_total_weekago': c['cases_total_weekago'],
+                        # 'cases_total_weekago': c['cases_total_weekago'],
+                        'cases_weekly_chg': c['cumulative_count'] - c['cases_total_weekago'],
                         'cases_weekly_pct_chg': cases_weekly_pct_chg,
                     }
                     rows.append(row)
@@ -212,7 +213,8 @@ class Command(BaseCommand):
                 'deaths_rolling': row['deaths_rolling'],
                 # 'pct_chg': row['pct_chg'],
                 # 'pct_chg_7day': row['pct_chg_7day'],
-                'cases_total_weekago': row['cases_total_weekago'],
+                # 'cases_total_weekago': row['cases_total_weekago'],
+                'cases_weekly_chg': row['cases_weekly_chg'],
                 'cases_weekly_pct_chg': row['cases_weekly_pct_chg'],
             })
 
