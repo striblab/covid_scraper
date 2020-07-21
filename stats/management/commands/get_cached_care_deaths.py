@@ -1,4 +1,5 @@
 import os
+import re
 import csv
 import boto3
 import pandas as pd
@@ -37,22 +38,34 @@ class Command(BaseCommand):
 
             homes_table = None
             homes_table = soup.find('table', id='dailydeathrt')
+            if not homes_table:
+                homes_th = soup.find('th', text=re.compile("Residence type.*"))
+                if homes_th:
+                    homes_table = homes_th.find_parent('tr').find_parent('table')
             if homes_table:
                 print(f)
                 for row in homes_table.find_all('tr')[1:]:
                     cells = row.find_all(['td'])
-                    facility_type = cells[0].text
-                    new_death_count = int(cells[1].text)
-                    record = {
-                        'date': f['scrape_date'],
-                        'facility_type': facility_type,
-                        'death_count': new_death_count,
-                        'death_pct': round(new_death_count / total_new_deaths, 4)
-                    }
+                    try:
+                        facility_type = cells[0].text
+                        new_death_count = int(cells[1].text)
+                        if total_new_deaths:
+                            death_pct = round(new_death_count / total_new_deaths, 4)
+                        else:
+                            death_pct = None
+                        record = {
+                            'date': f['scrape_date'],
+                            'facility_type': facility_type,
+                            'death_count': new_death_count,
+                            'death_pct': death_pct
+                        }
 
-                    records.append(record)
+                        records.append(record)
+                    except:
+                        print('Error for {}'.format(f['scrape_date']))
+                        pass
 
         df = pd.DataFrame(records)
-        print(df.head())
+        # print(df.head())
 
-        df.to_csv('covid_scraper/exports/new_deaths_by_residence_type.csv')
+        df.to_csv('covid_scraper/exports/new_deaths_by_residence_type.csv', index=False)

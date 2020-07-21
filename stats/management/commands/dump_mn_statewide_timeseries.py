@@ -174,9 +174,9 @@ class Command(BaseCommand):
 
         # Run through pandas to calculate rolling averages. For some of this it could be done in Django-land, but for positive pct, for example, it's hard to mix and match in a django query. So might as well do them all the same.
         ts_df = pd.DataFrame(rows)
-        ts_df['daily_pct_positive_rolling'] = ts_df['daily_pct_positive'].rolling(window=7).mean().round(3)
-        ts_df['cases_daily_change_rolling'] = ts_df['cases_daily_change'].rolling(window=7).mean().round(1)
-        ts_df['hosp_total_daily_rolling'] = ts_df['hosp_total_daily_change'].rolling(window=7).mean().round(1)
+        ts_df['daily_pct_positive_rolling'] = ts_df['daily_pct_positive'].rolling(window=7, min_periods=1).mean().round(3)
+        ts_df['cases_daily_change_rolling'] = ts_df['cases_daily_change'].rolling(window=7, min_periods=1).mean().round(1)
+        ts_df['hosp_total_daily_rolling'] = ts_df['hosp_total_daily_change'].rolling(window=7, min_periods=1).mean().round(1)
 
         # Put in a nice order...
         out_df = ts_df[[
