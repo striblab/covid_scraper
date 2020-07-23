@@ -28,6 +28,9 @@ lxml = "*"
 django-extensions = "*"
 boto3 = "*"
 geojson = "*"
+xlrd = "*"
+topojson = "==1.0rc10"
+simplification = "*"
 
 [requires]
 python_version = "3.8"

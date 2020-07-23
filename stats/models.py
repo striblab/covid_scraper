@@ -130,3 +130,10 @@ class CountyTestDate(models.Model):
 
     def __str__(self):
         return '{} {}: {}'.format(self.county.name, self.scrape_date, self.daily_count)
+
+
+class ZipCasesDate(models.Model):
+    data_date = models.DateField()
+    zip = models.CharField(max_length=7)
+    cases_cumulative = models.IntegerField()
+    import_date = models.DateTimeField(auto_now_add=True)
