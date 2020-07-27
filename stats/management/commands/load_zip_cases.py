@@ -14,13 +14,19 @@ class Command(BaseCommand):
 
     IMPORT_FOLDER = os.path.join(settings.BASE_DIR, 'imports', 'zip_cases')
 
-    FILE_PATH = os.path.join(IMPORT_FOLDER, 'COVID_ZIP_07.20.2020.xlsx')
+    FILE_PATH = os.path.join(IMPORT_FOLDER, 'COVID_ZIP_7.27.2020.xlsx')
 
     def code_cases(self, cases_raw):
         '''Handle <=5 cases, set them to -1'''
         if cases_raw == '<=5':
             return -1
         return int(cases_raw)
+
+    def catch_missing(self, zip_raw):
+        if zip_raw == 'Missing/Unknown':
+            return 'Missing'
+        else:
+            return zip_raw
 
     def handle(self, *args, **options):
         data_date_parser = re.search('(\d+)\.(\d+)\.(\d+)\.xlsx', self.FILE_PATH)
@@ -32,6 +38,7 @@ class Command(BaseCommand):
         in_df = pd.read_excel(self.FILE_PATH)
         in_df['data_date'] = data_date
         in_df['cases_cumulative'] = in_df['Cases'].apply(lambda x: self.code_cases(x))
+        in_df['GEOG_UNIT'] = in_df['GEOG_UNIT'].apply(lambda x: self.catch_missing(x))
         in_df.rename(columns={'GEOG_UNIT': 'zip'}, inplace=True)
         in_df.drop(columns=['Cases'], inplace=True)
 

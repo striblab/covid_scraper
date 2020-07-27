@@ -24,7 +24,7 @@ class Command(BaseCommand):
         zips_df['cases_cumulative_calc'] = zips_df['cases_cumulative'].replace(-1, np.nan)
         zips_df['cases_weekly_change'] = zips_df.groupby('zip')['cases_cumulative_calc'].transform(lambda x: x.diff())
         zips_df['cases_weekly_change_rolling'] = zips_df.groupby('zip')['cases_weekly_change'].transform(lambda x: x.rolling(7, 1).mean())
-        zips_df['cases_weekly_pct_chg'] = zips_df.groupby('zip')['cases_weekly_change'].transform(lambda x: x.rolling(7, 1).mean())
+        zips_df['cases_weekly_pct_chg'] = zips_df.groupby('zip')['cases_weekly_change'].transform(lambda x: x.rolling(7, 1).mean()).round(1)
 
         # Merge with demographics
         demo_df = pd.read_csv(self.DEMOGRAPHICS_FILE, dtype={'zip': object})
