@@ -35,14 +35,17 @@ class Command(BaseCommand):
         print('Merging with ACS demographics...')
         demo_df = pd.read_csv(self.DEMOGRAPHICS_FILE, dtype={'zip': object})
         zips_df_merged = zips_df.merge(demo_df, how="left", on="zip")
-        zips_df_merged['cases_per_1k'] = (zips_df_merged['cases_cumulative_calc'] / (zips_df_merged['pop_total'] / 1000)).round(1)
+        zips_df_merged['pct_nonwhite'] = zips_df_merged['pct_nonwhite'].round(3)
+        zips_df_merged['cases_weekly_change'] = zips_df_merged['cases_weekly_change'].fillna(-1)
+        zips_df_merged['cases_per_1k'] = (zips_df_merged['cases_cumulative_calc'] / (zips_df_merged['pop_total'] / 1000)).round(1).fillna(-1)
+        zips_df_merged.rename(columns={'cases_cumulative': 'cases_total'}, inplace=True)
         # print(zips_df_merged)
 
         print('Exporting CSV...')
         zips_df_merged[[
             'data_date',
             'zip',
-            'cases_cumulative',
+            'cases_total',
             'cases_per_1k',
             'cases_weekly_change',
             # 'cases_weekly_change_rolling',
@@ -87,4 +90,4 @@ class Command(BaseCommand):
         mn_zcta_with_data.to_file(self.OUTGEOJSON, driver='GeoJSON')
 
         print('Exporting MBTiles...')
-        os.system('tippecanoe -o {} -Z 6 -z 13 {} --force'.format(self.OUTMBTILES, self.OUTGEOJSON))
+        os.system('tippecanoe -o {} -Z 4 -z 13 {} --force'.format(self.OUTMBTILES, self.OUTGEOJSON))
