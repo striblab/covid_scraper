@@ -481,7 +481,7 @@ class Command(BaseCommand):
             if group['County of residence'] == 'Otter':
                 d_county_name = 'Otter Tail'
             else:
-                d_county_name = group['County of residence']
+                d_county_name = re.sub('\s+', ' ', group['County of residence'])
 
             clean_row = {
                 'scrape_date': today,
@@ -737,5 +737,5 @@ class Command(BaseCommand):
                 slack_latest(statewide_msg_output + death_msg_output + test_msg_output + county_msg_output, '#virus')
             else:
 
-                # slack_latest(statewide_msg_output + death_msg_output + test_msg_output + county_msg_output, '#robot-dojo')  # Force output anyway
+                # slack_latest(statewide_msg_output + death_msg_output + test_msg_output + county_msg_output, '#virus')  # Force output anyway
                 slack_latest('COVID scraper update: No changes detected.', '#robot-dojo')
