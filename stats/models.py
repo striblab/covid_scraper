@@ -15,6 +15,8 @@ class County(models.Model):
 class AgeGroupPop(models.Model):
     ''' static population stats '''
     age_group = models.CharField(max_length=100)
+    age_min = models.IntegerField(null=True)
+    age_max = models.IntegerField(null=True)
     population = models.IntegerField()
     pct_pop = models.IntegerField(null=True)
 
@@ -33,11 +35,25 @@ class Death(models.Model):
 class StatewideAgeDate(models.Model):
     scrape_date = models.DateField()
     age_group = models.CharField(max_length=100)
+    age_min = models.IntegerField(null=True)
+    age_max = models.IntegerField(null=True)
     cases_pct = models.IntegerField(default=None, null=True)
     deaths_pct = models.IntegerField(default=None, null=True)
     case_count = models.IntegerField(default=None, null=True)
     death_count = models.IntegerField(default=None, null=True)
     last_update = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+
+        split_ages = self.age_group.replace(' years', '').split('-')
+
+        if self.age_group == '100+ years':
+            self.age_min = 100
+            self.age_max = 200
+        elif len(split_ages) == 2:
+            self.age_min = split_ages[0]
+            self.age_max = split_ages[1]
+        super(StatewideAgeDate, self).save(*args, **kwargs)
 
 
 class StatewideCasesBySampleDate(models.Model):

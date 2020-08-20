@@ -6,7 +6,7 @@ import datetime
 
 from django.conf import settings
 
-from django.db.models import Max, Count
+from django.db.models import Max, Count, Sum
 from django.core.management.base import BaseCommand
 from stats.models import County, AgeGroupPop, CountyTestDate, StatewideAgeDate, StatewideTotalDate, StatewideDeathsDate, Death
 
@@ -95,23 +95,27 @@ class Command(BaseCommand):
         else:
             return round(input_int)
 
-    def build_ages_row(self, row, total_case_count, total_death_count, pct_state_pop):
-        if row.case_count and not row.cases_pct:
-            cases_pct = self.round_special(100 * (float(row.case_count) / float(total_case_count)))
-        else:
-            cases_pct = row.cases_pct
-
-        if row.death_count and not row.deaths_pct:
-            death_pct = self.round_special(100 * (float(row.death_count) / float(total_death_count)))
-        else:
-            death_pct = row.deaths_pct
+    def build_ages_row(self, age_group, case_count, death_count, total_case_count, total_death_count, pct_state_pop):
+        # case_count = group_records.aggregate(Sum('case_count'))['case_count__sum']
+        # death_count = group_records.aggregate(Sum('case_count'))['case_count__sum']
+        cases_pct = self.round_special(100 * (float(case_count) / float(total_case_count)))
+        deaths_pct = self.round_special(100 * (float(death_count) / float(total_death_count)))
+        # if row.case_count and not row.cases_pct:
+        #     cases_pct = self.round_special(100 * (float(row.case_count) / float(total_case_count)))
+        # else:
+        #     cases_pct = row.cases_pct
+        #
+        # if row.death_count and not row.deaths_pct:
+        #     death_pct = self.round_special(100 * (float(row.death_count) / float(total_death_count)))
+        # else:
+        #     death_pct = row.deaths_pct
 
         return {
-            'age_group': row.age_group,
-            'cases': row.case_count,
-            'deaths': row.death_count,
+            'age_group': age_group,
+            'cases': case_count,
+            'deaths': death_count,
             'pct_of_cases': cases_pct,
-            'pct_of_deaths': death_pct,
+            'pct_of_deaths': deaths_pct,
             'pct_state_pop': pct_state_pop
         }
 
@@ -139,12 +143,38 @@ class Command(BaseCommand):
             rows = []
             # age_groups = StatewideAgeDate.objects.filter(scrape_date=datetime.date.today()).order_by('pk')
             for a in age_groups:
+
+                # Need to combine age brackets on data side
+
                 # print(a.age_group)
                 print(a.age_group)
-                lr = StatewideAgeDate.objects.get(age_group=a.age_group, scrape_date=max_date)
-            # for lr in latest_records:
+                group_records = StatewideAgeDate.objects.filter(
+                    age_min__gte=a.age_min,
+                    age_max__lte=a.age_max,
+                    scrape_date=max_date
+                )
 
-                rows.append(self.build_ages_row(lr, total_case_count, total_death_count, a.pct_pop))
+                case_count = group_records.aggregate(Sum('case_count'))['case_count__sum']
+                death_count = group_records.aggregate(Sum('death_count'))['death_count__sum']
+
+                rows.append(self.build_ages_row(a.age_group, case_count, death_count, total_case_count, total_death_count, a.pct_pop))
+
+                # cases_pct = self.round_special(100 * (float(case_count) / float(total_case_count)))
+                # deaths_pct = self.round_special(100 * (float(death_count) / float(total_death_count)))
+                #
+                # case_count = group_records.aggregate(Sum('case_count'))['case_count__sum']
+                # death_count = group_records.aggregate(Sum('case_count'))['case_count__sum']
+                #
+                # rows.append({
+                #     'age_group': a.age_group,
+                #     'cases': case_count,
+                #     'deaths': death_count,
+                #     'pct_of_cases': cases_pct,
+                #     'pct_of_deaths': death_pct,
+                #     'pct_state_pop': a.pct_pop
+                # })
+
+                # rows.append(self.build_ages_row(lr, total_case_count, total_death_count, a.pct_pop))
 
             missing = StatewideAgeDate.objects.get(age_group='Unknown/missing', scrape_date=max_date)
             # writer.writerow({
@@ -155,7 +185,7 @@ class Command(BaseCommand):
             #     'pct_of_deaths': missing.deaths_pct,
             #     'pct_state_pop': 'N/A'
             # })
-            rows.append(self.build_ages_row(missing, total_case_count, total_death_count, 'N/A'))
+            rows.append(self.build_ages_row(missing.age_group, missing.case_count, missing.death_count, total_case_count, total_death_count, 'N/A'))
 
             writer.writerows(rows)
 
@@ -198,4 +228,4 @@ class Command(BaseCommand):
         self.dump_county_latest()
         self.dump_state_latest()
         self.dump_ages_latest()
-        self.dump_detailed_death_ages_latest()
+        # self.dump_detailed_death_ages_latest()

@@ -6,7 +6,7 @@ STATEWIDE_LATEST_FILENAME=mn_statewide_latest
 AGES_LATEST_FILENAME=mn_ages_latest
 DEATH_AGES_LATEST_FILENAME=mn_death_ages_detailed_latest
 STATEWIDE_TIMESERIES_FILENAME=mn_statewide_timeseries
-COUNTY_TIMESERIES_FILENAME=mn_county_timeseries
+# COUNTY_TIMESERIES_FILENAME=mn_county_timeseries
 COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
 NATIONAL_TIMESERIES_FILENAME=national_cases_deaths_by_county_timeseries
 NATIONAL_LATEST_FILENAME=national_cases_deaths_by_county_latest
@@ -127,9 +127,9 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TIMESERIES_FILENAME.csv \
-  --content-type=text/csv \
-  --acl public-read
+  # aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TIMESERIES_FILENAME.csv \
+  # --content-type=text/csv \
+  # --acl public-read
 
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$STATEWIDE_TIMESERIES_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
@@ -146,15 +146,18 @@ if (("${LINE_COUNT[0]}" > 2)); then
   aws s3 cp $EXPORTS_ROOT/mn_county_timeseries.json s3://$S3_URL/json/mn_county_timeseries.json \
   --content-type=application/json \
   --acl public-read
-
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TIMESERIES_FILENAME-$download_datetime.csv \
-  --content-type=text/csv \
-  --acl public-read
+  #
+  # aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TIMESERIES_FILENAME-$download_datetime.csv \
+  # --content-type=text/csv \
+  # --acl public-read
 
 else
   echo "***** WARNING WARNING WARNING: The newest file is very short. Taking no further action. *****"
 fi
 printf "\n"
+
+echo "Updating zip code data ..."
+python manage.py dump_zip_cases
 
 if (("${LINE_COUNT[0]}" > 2)); then
   echo "Updating Github..."

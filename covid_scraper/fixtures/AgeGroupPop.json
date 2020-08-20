@@ -2,87 +2,129 @@
 	"model": "stats.agegrouppop",
 	"pk": 1,
 	"fields": {
-		"age_group": "0-5 years",
-		"population": 427426,
-		"pct_pop": 8
+		"age_group": "0-4 years",
+		"age_min": 0,
+		"age_max": 4,
+		"population": 355504,
+		"pct_pop": 7
 	}
 }, {
 	"model": "stats.agegrouppop",
 	"pk": 2,
 	"fields": {
-		"age_group": "6-19 years",
-		"population": 1003785,
-		"pct_pop": 19
+		"age_group": "5-9 years",
+		"age_min": 5,
+		"age_max": 9,
+		"population": 355536,
+		"pct_pop": 7
 	}
 }, {
 	"model": "stats.agegrouppop",
 	"pk": 3,
 	"fields": {
-		"age_group": "20-29 years",
-		"population": 728337,
-		"pct_pop": 14
+		"age_group": "10-14 years",
+		"age_min": 10,
+		"age_max": 14,
+		"population": 352342,
+		"pct_pop": 7
 	}
 }, {
 	"model": "stats.agegrouppop",
 	"pk": 4,
 	"fields": {
-		"age_group": "30-39 years",
-		"population": 671090,
-		"pct_pop": 13
+		"age_group": "15-19 years",
+		"age_min": 15,
+		"age_max": 19,
+		"population": 367829,
+		"pct_pop": 7
 	}
 }, {
 	"model": "stats.agegrouppop",
 	"pk": 5,
 	"fields": {
-		"age_group": "40-49 years",
-		"population": 759107,
+		"age_group": "20-29 years",
+		"age_min": 20,
+		"age_max": 29,
+		"population": 728337,
 		"pct_pop": 14
 	}
 }, {
 	"model": "stats.agegrouppop",
 	"pk": 6,
 	"fields": {
-		"age_group": "50-59 years",
-		"population": 751284,
-		"pct_pop": 14
+		"age_group": "30-39 years",
+		"age_min": 30,
+		"age_max": 39,
+		"population": 671090,
+		"pct_pop": 13
 	}
 }, {
 	"model": "stats.agegrouppop",
 	"pk": 7,
 	"fields": {
-		"age_group": "60-69 years",
-		"population": 482345,
-		"pct_pop": 9
+		"age_group": "40-49 years",
+		"age_min": 40,
+		"age_max": 49,
+		"population": 759107,
+		"pct_pop": 14
 	}
 }, {
 	"model": "stats.agegrouppop",
 	"pk": 8,
 	"fields": {
-		"age_group": "70-79 years",
-		"population": 273971,
-		"pct_pop": 5
+		"age_group": "50-59 years",
+		"age_min": 50,
+		"age_max": 59,
+		"population": 751284,
+		"pct_pop": 14
 	}
 }, {
 	"model": "stats.agegrouppop",
 	"pk": 9,
 	"fields": {
-		"age_group": "80-89 years",
-		"population": 166972,
-		"pct_pop": 3
+		"age_group": "60-69 years",
+		"age_min": 60,
+		"age_max": 69,
+		"population": 482345,
+		"pct_pop": 9
 	}
 }, {
 	"model": "stats.agegrouppop",
 	"pk": 10,
 	"fields": {
-		"age_group": "90-99 years",
-		"population": 38397,
-		"pct_pop": -1
+		"age_group": "70-79 years",
+		"age_min": 70,
+		"age_max": 79,
+		"population": 273971,
+		"pct_pop": 5
 	}
 }, {
 	"model": "stats.agegrouppop",
 	"pk": 11,
 	"fields": {
+		"age_group": "80-89 years",
+		"age_min": 80,
+		"age_max": 89,
+		"population": 166972,
+		"pct_pop": 3
+	}
+}, {
+	"model": "stats.agegrouppop",
+	"pk": 12,
+	"fields": {
+		"age_group": "90-99 years",
+		"age_min": 90,
+		"age_max": 99,
+		"population": 38397,
+		"pct_pop": -1
+	}
+}, {
+	"model": "stats.agegrouppop",
+	"pk": 13,
+	"fields": {
 		"age_group": "100+ years",
+		"age_min": 100,
+		"age_max": 200,
 		"population": 1211,
 		"pct_pop": -1
 	}
