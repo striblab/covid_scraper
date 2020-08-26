@@ -15,7 +15,7 @@ class Command(BaseCommand):
     IMPORT_FOLDER = os.path.join(settings.BASE_DIR, 'imports', 'zip_cases')
 
     # FILE_PATH = os.path.join(IMPORT_FOLDER, 'COVID_ZIP_8.3.2020.xlsx')
-    FILE_PATH = os.path.join(IMPORT_FOLDER, 'covid_zip_20200813.csv')
+    FILE_PATH = os.path.join(IMPORT_FOLDER, 'covid_zip_20200820.csv')
 
     def code_cases(self, cases_raw):
         '''Handle <=5 cases, set them to -1'''
@@ -40,6 +40,7 @@ class Command(BaseCommand):
 
         # in_df = pd.read_excel(self.FILE_PATH)
         in_df = pd.read_csv(self.FILE_PATH)
+        in_df.rename(columns={'Cases': 'CASES'}, inplace=True)
         in_df['data_date'] = data_date
         in_df['cases_cumulative'] = in_df['CASES'].apply(lambda x: self.code_cases(x))
         in_df['ZIPCODE'] = in_df['ZIPCODE'].apply(lambda x: self.catch_missing(x))
