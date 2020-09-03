@@ -20,34 +20,6 @@ class Command(BaseCommand):
         for n in range(int ((date2 - date1).days)+1):
             yield date1 + timedelta(n)
 
-    # def dump_wide_timeseries(self):
-    #     ''' Currently deprecated '''
-    #     print('Dumping wide county timeseries...')
-    #     dates = list(self.daterange(CountyTestDate.objects.all().order_by('scrape_date').first().scrape_date, datetime.date.today()))
-    #
-    #     fieldnames = ['county'] + [d.strftime('%Y-%m-%d') for d in dates]
-    #     rows = []
-    #
-    #     for c in CountyTestDate.objects.all().values('county__name').distinct().order_by('county__name'):
-    #         row = {'county': c['county__name']}
-    #         for d in dates:
-    #             if d == datetime.date.today() and self.today_statewide_cases == 0:
-    #                 pass  # Ignore if there's no new results for today
-    #             else:
-    #                 most_recent_observation = CountyTestDate.objects.filter(county__name=c['county__name'], scrape_date__lte=d).order_by('-scrape_date').first()
-    #                 if most_recent_observation:
-    #                     row[d.strftime('%Y-%m-%d')] = most_recent_observation.cumulative_count
-    #                 else:
-    #                     row[d.strftime('%Y-%m-%d')] = 0
-    #
-    #         rows.append(row)
-    #
-    #     with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_county_timeseries.csv'), 'w') as csvfile:
-    #
-    #         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-    #         writer.writeheader()
-    #         writer.writerows(rows)
-
     def dump_all_counties_timeseries(self):
         print('Dumping all-county timeseries...')
         start_date = CountyTestDate.objects.aggregate(Min('scrape_date'))['scrape_date__min']
@@ -79,7 +51,6 @@ class Command(BaseCommand):
                             'cumulative_deaths': 0
                         }
                     records_by_county.append(county_date_record)
-        # print(records_by_county)
 
         fieldnames = ['date', 'county', 'daily_cases', 'cumulative_cases', 'daily_deaths', 'cumulative_deaths']
         rows = []
@@ -103,8 +74,8 @@ class Command(BaseCommand):
 
     def dump_tall_timeseries(self):
         print('Dumping tall county timeseries...')
-        fieldnames = ['date', 'county', 'daily_cases', 'cumulative_cases', 'daily_deaths', 'cumulative_deaths', 'cases_rolling',
-'deaths_rolling', 'cases_weekly_chg', 'cases_weekly_pct_chg',]
+        fieldnames = ['date', 'county', 'daily_cases', 'cumulative_cases', 'cases_per_1k', 'daily_deaths', 'cumulative_deaths', 'cases_rolling',
+'deaths_rolling', 'cases_weekly_chg', 'cases_weekly_per_1k', 'cases_weekly_pct_chg',]
         # 'pct_chg', 'pct_chg_7day',
         rows = []
 
@@ -133,18 +104,6 @@ class Command(BaseCommand):
                     default=Value(0),
                     output_field=FloatField()
                 )
-            # ).annotate(
-            #     pct_chg=Case(
-            #         When(cumulative_count__gt=0, then=F('daily_count')  * 1.0 / F('cumulative_count')),
-            #         default=Value(0),
-            #         output_field=FloatField()
-            #     )
-            # ).annotate(
-            #     pct_chg_7day=Window(
-            #         expression=Avg('pct_chg'),
-            #         order_by=F('scrape_date').asc(),
-            #         frame=RowRange(start=-6,end=0)
-            #     )
             ).values(
                 'scrape_date',
                 'update_date',
@@ -167,13 +126,10 @@ class Command(BaseCommand):
                 # else:
                 #     # print(c.scrape_date, c.county.name, c.cumulative_count)
                     # print(c['county__name'], c['daily_count'], c['pct_chg'], c['pct_chg_7day'])
+                    cases_weekly_change = c['cumulative_count'] - c['cases_total_weekago']
                     if c['cumulative_count'] < 100:
-                        # pct_chg = None
-                        # pct_chg_7day = None
                         cases_weekly_pct_chg = None
                     else:
-                        # pct_chg = round(c['pct_chg'], 3)
-                        # pct_chg_7day = round(c['pct_chg_7day'], 3)
                         cases_weekly_pct_chg = round(c['cases_weekly_pct_chg'], 3)
 
                     row = {
@@ -181,14 +137,13 @@ class Command(BaseCommand):
                         'county': c['county__name'],
                         'daily_cases': c['daily_count'],
                         'cumulative_cases': c['cumulative_count'],
+                        'cases_per_1k': round(c['cumulative_count'] / (county.pop_2019 / 1000), 1),
                         'daily_deaths': c['daily_deaths'],
                         'cumulative_deaths': c['cumulative_deaths'],
                         'cases_rolling': round(c['cases_rolling'], 1),
                         'deaths_rolling': round(c['deaths_rolling'], 2),
-                        # 'pct_chg': pct_chg,
-                        # 'pct_chg_7day': pct_chg_7day,
-                        # 'cases_total_weekago': c['cases_total_weekago'],
-                        'cases_weekly_chg': c['cumulative_count'] - c['cases_total_weekago'],
+                        'cases_weekly_chg': cases_weekly_change,
+                        'cases_weekly_per_1k': round(cases_weekly_change / (county.pop_2019 / 1000), 1),
                         'cases_weekly_pct_chg': cases_weekly_pct_chg,
                     }
                     rows.append(row)
@@ -207,14 +162,13 @@ class Command(BaseCommand):
                 'county': row['county'],
                 'daily_cases': row['daily_cases'],
                 'cases': row['cumulative_cases'],
+                'cases_per_1k': row['cases_per_1k'],
                 'daily_deaths': row['daily_deaths'],
                 'deaths': row['cumulative_deaths'],
                 'cases_rolling': row['cases_rolling'],
                 'deaths_rolling': row['deaths_rolling'],
-                # 'pct_chg': row['pct_chg'],
-                # 'pct_chg_7day': row['pct_chg_7day'],
-                # 'cases_total_weekago': row['cases_total_weekago'],
                 'cases_weekly_chg': row['cases_weekly_chg'],
+                'cases_weekly_per_1k': row['cases_weekly_per_1k'],
                 'cases_weekly_pct_chg': row['cases_weekly_pct_chg'],
             })
 
