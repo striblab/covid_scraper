@@ -84,8 +84,10 @@ class Command(BaseCommand):
                 # 'total_completed_mdh': latest.cumulative_completed_mdh,
                 # 'total_completed_private': latest.cumulative_completed_private,
                 'total_hospitalized': latest.cumulative_hospitalized,
-                'currently_hospitalized': latest.currently_hospitalized,
-                'currently_in_icu': latest.currently_in_icu,
+                # 'currently_hospitalized': latest.currently_hospitalized,
+                # 'currently_in_icu': latest.currently_in_icu,
+                'currently_hospitalized': None,
+                'currently_in_icu': None,
                 'last_update': latest.last_update
             })
 

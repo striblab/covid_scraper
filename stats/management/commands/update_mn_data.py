@@ -10,7 +10,7 @@ from urllib.request import urlopen
 from django.db.models import Sum, Count, Max, Avg, F, RowRange, Window
 from django.core.management.base import BaseCommand
 from django.core.exceptions import ObjectDoesNotExist
-from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death, StatewideCasesBySampleDate, StatewideTestsDate, StatewideDeathsDate
+from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death, StatewideCasesBySampleDate, StatewideTestsDate, StatewideDeathsDate, StatewideHospitalizationsDate
 from stats.utils import slack_latest
 
 from django.conf import settings
@@ -203,7 +203,7 @@ class Command(BaseCommand):
                 co = StatewideCasesBySampleDate(
                     sample_date=sample_date,
                     new_cases=self.parse_comma_int(new_cases),
-                    total_cases=self.parse_comma_int(c['Cumulative positive cases']),
+                    total_cases=self.parse_comma_int(c['Total positive cases (cumulative)']),
                     update_date=update_date,
                     scrape_date=today,
                 )
@@ -235,12 +235,12 @@ class Command(BaseCommand):
                     new_state_tests = 0
                     new_external_tests = self.parse_comma_int(c['Completed tests reported from external laboratories (daily)'])
                     new_tests = new_state_tests + new_external_tests
-                    total_tests = self.parse_comma_int(c['Total approximate number of completed tests '])
+                    total_tests = self.parse_comma_int(c['Total approximate number of completed tests (cumulative)'])
                 else:
                     new_state_tests = self.parse_comma_int(c['Completed tests reported from the MDH Public Health Lab (daily)'])
                     new_external_tests = self.parse_comma_int(c['Completed tests reported from external laboratories (daily)'])
                     new_tests = new_state_tests + new_external_tests
-                    total_tests = self.parse_comma_int(c['Total approximate number of completed tests '])
+                    total_tests = self.parse_comma_int(c['Total approximate number of completed tests (cumulative)'])
 
                 std = StatewideTestsDate(
                     reported_date=reported_date,
@@ -273,63 +273,140 @@ class Command(BaseCommand):
 
         return msg_output
 
+    def get_statewide_hospitalizations_timeseries(self, soup, update_date):
+        print('Parsing statewide hospitalizations timeseries...')
+
+        hosp_table = table = soup.find("table", {'id': 'hosptable'})
+        hosp_timeseries = self.full_table_parser(hosp_table)
+        print(hosp_timeseries)
+        # print(deaths_timeseries)
+
+        if len(hosp_timeseries) > 0:
+            today = datetime.date.today()
+            # Remove old records from today
+            existing_today_records = StatewideHospitalizationsDate.objects.filter(scrape_date=today)
+            print('Removing {} records of hospitalizations timeseries data'.format(existing_today_records.count()))
+            existing_today_records.delete()
+            hosp_objs = []
+            for c in hosp_timeseries:
+                if c['Date '] == 'Unknown/missing':
+                    reported_date = None
+                elif c['Date '] == 'Admitted on or before 3/5':
+                    reported_date = self.parse_mdh_date('3/5', today)
+                else:
+                    reported_date = self.parse_mdh_date(c['Date '], today)
+
+                # check for hyphen in table cell, set to null if hyphen exists
+                if c['Cases admitted to a hospital'] in ['-', '-\xa0\xa0 ']:
+                    new_hospitalizations = None
+                else:
+                    new_hospitalizations = self.parse_comma_int(c['Cases admitted to a hospital'])
+
+                if c['Cases    admitted to an ICU'] in ['-', '-\xa0\xa0 ']:
+                    new_icu_admissions = None
+                else:
+                    new_icu_admissions = self.parse_comma_int(c['Cases    admitted to an ICU'])
+
+                total_hospitalizations = self.parse_comma_int(c['Total hospitalizations    (cumulative)'])
+                total_icu_admissions = self.parse_comma_int(c['Total ICU hospitalizations    (cumulative)'])
+
+                std = StatewideHospitalizationsDate(
+                    reported_date=reported_date,
+                    new_hosp_admissions=new_hospitalizations,
+                    new_icu_admissions=new_icu_admissions,
+                    total_hospitalizations=total_hospitalizations,
+                    total_icu_admissions=total_icu_admissions,
+                    update_date=update_date,
+                    scrape_date=today,
+                )
+                hosp_objs.append(std)
+
+            print('Adding {} records of hospitalizations timeseries data'.format(len(hosp_objs)))
+            StatewideHospitalizationsDate.objects.bulk_create(hosp_objs)
+
+          # calculate/add rolling average
+          # print('Calculating rolling averages ...')
+          # hosps_added = StatewideHospitalizationsDate.objects.filter(scrape_date=today).annotate(
+          #     new_non_icu_admissions_rolling_temp=Window(
+          #         expression=Avg('new_non_icu_admissions'),
+          #         order_by=F('reported_date').asc(),
+          #         frame=RowRange(start=-6,end=0)
+          #     ),
+          #     new_icu_admissions_rolling_rolling_temp=Window(
+          #         expression=Avg('new_icu_admissions'),
+          #         order_by=F('reported_date').asc(),
+          #         frame=RowRange(start=-6,end=0)
+          #     ),
+          # )
+          #
+          # for t in hosps_added:
+          #     t.new_non_icu_admissions_rolling = t.new_non_icu_admissions_rolling_temp
+          #     t.new_icu_admissions_rolling = t.new_icu_admissions_rolling_temp
+          #     t.save()
+
+        # Move this message to overall state data
+        # msg_output = '*{}* total hospitalizations (*{}* new admissions reported today)\n\n'.format(f'{total_hospitalizations:,}', self.change_sign(new_deaths))
+        # return msg_output
+
+        return total_hospitalizations
+
 
     def get_statewide_deaths_timeseries(self, soup, update_date):
-          print('Parsing statewide deaths timeseries...')
+        print('Parsing statewide deaths timeseries...')
 
-          deaths_table = table = soup.find("table", {'id': 'deathtable'})
-          deaths_timeseries = self.full_table_parser(deaths_table)
-          # print(deaths_timeseries)
+        deaths_table = table = soup.find("table", {'id': 'deathtable'})
+        deaths_timeseries = self.full_table_parser(deaths_table)
+        # print(deaths_timeseries)
 
-          if len(deaths_timeseries) > 0:
-              today = datetime.date.today()
-              # Remove old records from today
-              existing_today_records = StatewideDeathsDate.objects.filter(scrape_date=today)
-              print('Removing {} records of deaths timeseries data'.format(existing_today_records.count()))
-              existing_today_records.delete()
-              death_objs = []
-              for c in deaths_timeseries:
-                  if c['Date reported'] == 'Unknown/missing':
-                      reported_date = None
-                  else:
-                      reported_date = self.parse_mdh_date(c['Date reported'], today)
+        if len(deaths_timeseries) > 0:
+            today = datetime.date.today()
+            # Remove old records from today
+            existing_today_records = StatewideDeathsDate.objects.filter(scrape_date=today)
+            print('Removing {} records of deaths timeseries data'.format(existing_today_records.count()))
+            existing_today_records.delete()
+            death_objs = []
+            for c in deaths_timeseries:
+                if c['Date reported'] == 'Unknown/missing':
+                  reported_date = None
+                else:
+                  reported_date = self.parse_mdh_date(c['Date reported'], today)
 
-                # check for hyphen in deaths table, set to null if hyphen exists
-                  if c['Newly reported deaths (daily)'] in ['-', '-\xa0\xa0 ']:
-                      new_deaths = None
-                  else:
-                      new_deaths = self.parse_comma_int(c['Newly reported deaths (daily)'])
+            # check for hyphen in deaths table, set to null if hyphen exists
+            if c['Newly reported deaths (daily)'] in ['-', '-\xa0\xa0 ']:
+              new_deaths = None
+            else:
+              new_deaths = self.parse_comma_int(c['Newly reported deaths (daily)'])
 
-                  total_deaths = self.parse_comma_int(c['Total deaths'])
+            total_deaths = self.parse_comma_int(c['Total deaths (cumulative)'])
 
-                  std = StatewideDeathsDate(
-                      reported_date=reported_date,
-                      new_deaths=new_deaths,
-                      total_deaths=total_deaths,
-                      update_date=update_date,
-                      scrape_date=today,
-                  )
-                  death_objs.append(std)
-              print('Adding {} records of deaths timeseries data'.format(len(death_objs)))
-              StatewideDeathsDate.objects.bulk_create(death_objs)
+            std = StatewideDeathsDate(
+              reported_date=reported_date,
+              new_deaths=new_deaths,
+              total_deaths=total_deaths,
+              update_date=update_date,
+              scrape_date=today,
+            )
+            death_objs.append(std)
+            print('Adding {} records of deaths timeseries data'.format(len(death_objs)))
+            StatewideDeathsDate.objects.bulk_create(death_objs)
 
-              # calculate/add rolling average
-              print('Calculating rolling averages ...')
-              deaths_added = StatewideDeathsDate.objects.filter(scrape_date=today).annotate(
-                  new_deaths_rolling_temp=Window(
-                      expression=Avg('new_deaths'),
-                      order_by=F('reported_date').asc(),
-                      frame=RowRange(start=-6,end=0)
-                  )
-              )
-              for t in deaths_added:
-                  t.new_deaths_rolling = t.new_deaths_rolling_temp
-                  t.save()
+            # calculate/add rolling average
+            print('Calculating rolling averages ...')
+            deaths_added = StatewideDeathsDate.objects.filter(scrape_date=today).annotate(
+                new_deaths_rolling_temp=Window(
+                  expression=Avg('new_deaths'),
+                  order_by=F('reported_date').asc(),
+                  frame=RowRange(start=-6,end=0)
+                )
+            )
+            for t in deaths_added:
+                t.new_deaths_rolling = t.new_deaths_rolling_temp
+                t.save()
 
-          msg_output = '*{}* total deaths (*{}* reported today)\n\n'.format(f'{total_deaths:,}', self.change_sign(new_deaths))
-          print(msg_output)
+            msg_output = '*{}* total deaths (*{}* reported today)\n\n'.format(f'{total_deaths:,}', self.change_sign(new_deaths))
+            print(msg_output)
 
-          return msg_output
+            return msg_output
 
 
     # TODO: Hospitalization timeseries table
@@ -339,31 +416,35 @@ class Command(BaseCommand):
 
         hosp_table = soup.find("table", {'id': 'hosptable'})
         hosp_table_latest = self.detail_tables_regex(hosp_table)
+        print(hosp_table_latest)
+        output['cumulative_hospitalized'] = self.parse_comma_int(hosp_table_latest['Total hospitalizations    (cumulative)'])
+         # Not used except to add up
+
+        # '*{}* total hospitalizations (*{}* new admissions reported today)\n\n'.format(f'{total_hospitalizations:,}', self.change_sign(new_deaths))
 
         # check for null hospitalizations
 
-        if hosp_table_latest['Hospitalized in ICU (daily)'] == '-\xa0\xa0 ' or hosp_table_latest['Hospitalized in ICU (daily)'] == '-':
-            output['currently_in_icu'] = None
-        else:
-            output['currently_in_icu'] = self.parse_comma_int(hosp_table_latest['Hospitalized in ICU (daily)'])
+        # if hosp_table_latest['Hospitalized in ICU (daily)'] == '-\xa0\xa0 ' or hosp_table_latest['Hospitalized in ICU (daily)'] == '-':
+        #     output['currently_in_icu'] = None
+        # else:
+        #     output['currently_in_icu'] = self.parse_comma_int(hosp_table_latest['Hospitalized in ICU (daily)'])
 
-        if hosp_table_latest['Hospitalized, not in ICU (daily)'] == '-\xa0\xa0 ' or hosp_table_latest['Hospitalized, not in ICU (daily)'] == '-':
-            output['currently_non_icu_hospitalized'] = None
-        else:
-            output['currently_non_icu_hospitalized'] = self.parse_comma_int(hosp_table_latest['Hospitalized, not in ICU (daily)'])
+        # if hosp_table_latest['Hospitalized, not in ICU (daily)'] == '-\xa0\xa0 ' or hosp_table_latest['Hospitalized, not in ICU (daily)'] == '-':
+        #     output['currently_non_icu_hospitalized'] = None
+        # else:
+        #     output['currently_non_icu_hospitalized'] = self.parse_comma_int(hosp_table_latest['Hospitalized, not in ICU (daily)'])
+        #
+        # if output['currently_in_icu'] == None or output['currently_non_icu_hospitalized'] == None:
+        #     output['currently_hospitalized'] = None
+        # else:
+        #     output['currently_hospitalized'] = output['currently_in_icu'] + output['currently_non_icu_hospitalized']
 
-        if output['currently_in_icu'] == None or output['currently_non_icu_hospitalized'] == None:
-            output['currently_hospitalized'] = None
-        else:
-            output['currently_hospitalized'] = output['currently_in_icu'] + output['currently_non_icu_hospitalized']
 
-        output['cumulative_hospitalized'] = self.parse_comma_int(hosp_table_latest['Total hospitalizations'])
-         # Not used except to add up
 
 
         deaths_table = soup.find("table", {'id': 'deathtable'})
         deaths_table_latest = self.detail_tables_regex(deaths_table)
-        output['cumulative_statewide_deaths'] = self.parse_comma_int(deaths_table_latest['Total deaths'])
+        output['cumulative_statewide_deaths'] = self.parse_comma_int(deaths_table_latest['Total deaths (cumulative)'])
 
         newly_reported_cases_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported cases')).find_parent('td').find('strong').text)
         # print(newly_reported_cases_match)
@@ -410,7 +491,7 @@ class Command(BaseCommand):
                 # print(cumulative_positive_tests_match)
                 output['cumulative_positive_tests'] = cumulative_positive_tests_match
 
-            daily_cases_removed_match = self.ul_regex('Cases removed\*', ul.text)
+            daily_cases_removed_match = self.ul_regex('Cases removed', ul.text)
             if daily_cases_removed_match is not False:
                 output['removed_cases'] = daily_cases_removed_match
                 # print('cases removed', daily_cases_removed_match)
@@ -607,8 +688,8 @@ class Command(BaseCommand):
             current_statewide_observation.cumulative_completed_mdh = statewide_data['cumulative_completed_mdh']
             current_statewide_observation.cumulative_completed_private = statewide_data['cumulative_completed_private']
             current_statewide_observation.cumulative_hospitalized = statewide_data['cumulative_hospitalized']
-            current_statewide_observation.currently_hospitalized = statewide_data['currently_hospitalized']
-            current_statewide_observation.currently_in_icu = statewide_data['currently_in_icu']
+            # current_statewide_observation.currently_hospitalized = statewide_data['currently_hospitalized']
+            # current_statewide_observation.currently_in_icu = statewide_data['currently_in_icu']
 
             current_statewide_observation.hospitalized_total_daily_change = hospitalized_total_daily_change
 
@@ -633,8 +714,8 @@ class Command(BaseCommand):
                     cumulative_completed_mdh=statewide_data['cumulative_completed_mdh'],
                     cumulative_completed_private=statewide_data['cumulative_completed_private'],
                     cumulative_hospitalized=statewide_data['cumulative_hospitalized'],
-                    currently_hospitalized=statewide_data['currently_hospitalized'],
-                    currently_in_icu=statewide_data['currently_in_icu'],
+                    # currently_hospitalized=statewide_data['currently_hospitalized'],
+                    # currently_in_icu=statewide_data['currently_in_icu'],
                     hospitalized_total_daily_change=hospitalized_total_daily_change,
                     cumulative_statewide_deaths=statewide_data['cumulative_statewide_deaths'],
                     cumulative_statewide_recoveries=statewide_data['cumulative_statewide_recoveries'],
@@ -650,22 +731,26 @@ class Command(BaseCommand):
         msg_output = ''
         # if (cases_daily_change != 0):
         # new_deaths = current_statewide_observation.cumulative_statewide_deaths - previous_statewide_results.cumulative_statewide_deaths
-        if yesterday_results.currently_hospitalized:
-            hospitalizations_change = current_statewide_observation.currently_hospitalized - yesterday_results.currently_hospitalized
-        else:
-            hospitalizations_change = None
 
-        if yesterday_results.currently_in_icu:
-            icu_change = current_statewide_observation.currently_in_icu - yesterday_results.currently_in_icu
-        else:
-            icu_change = None
+        # if yesterday_results.currently_hospitalized:
+        #     hospitalizations_change = current_statewide_observation.currently_hospitalized - yesterday_results.currently_hospitalized
+        # else:
+        #     hospitalizations_change = None
+        #
+        # if yesterday_results.currently_in_icu:
+        #     icu_change = current_statewide_observation.currently_in_icu - yesterday_results.currently_in_icu
+        # else:
+        #     icu_change = None
+
         new_tests = current_statewide_observation.cumulative_completed_tests - yesterday_results.cumulative_completed_tests
 
         print('Change found, composing statewide Slack message...')
         # msg_output += '*{}* deaths total (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_statewide_deaths:,}', self.change_sign(deaths_daily_change))
         msg_output += '*{}* cases total (change of *{}* today, *{}* newly reported, *{}* removed)\n'.format(f'{current_statewide_observation.cumulative_positive_tests:,}', self.change_sign(cases_daily_change), f'{current_statewide_observation.cases_newly_reported:,}', f'{current_statewide_observation.removed_cases:,}')
-        msg_output += '*{}* currently hospitalized (*{}* today)\n'.format(f'{current_statewide_observation.currently_hospitalized:,}', self.change_sign(hospitalizations_change))
-        msg_output += '*{}* currently in ICU (*{}* today)\n'.format(f'{current_statewide_observation.currently_in_icu:,}', self.change_sign(icu_change))
+
+        msg_output += '*{}* total hospitalizations (*{}* new admissions reported today)\n\n'.format(f'{statewide_data["cumulative_hospitalized"]:,}', self.change_sign(hospitalized_total_daily_change))
+        # msg_output += '*{}* currently hospitalized (*{}* today)\n'.format(f'{current_statewide_observation.currently_hospitalized:,}', self.change_sign(hospitalizations_change))
+        # msg_output += '*{}* currently in ICU (*{}* today)\n'.format(f'{current_statewide_observation.currently_in_icu:,}', self.change_sign(icu_change))
 
         # TODO: Separate new tests in message
         # msg_output += '*{}* total tests completed (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_completed_tests:,}', self.change_sign(new_tests))
@@ -713,6 +798,8 @@ class Command(BaseCommand):
             self.get_statewide_cases_timeseries(soup, update_date)
             test_msg_output = self.get_statewide_tests_timeseries(soup, update_date)
             death_msg_output = self.get_statewide_deaths_timeseries(soup, update_date)
+
+            total_hospitalizations = self.get_statewide_hospitalizations_timeseries(soup, update_date)
 
             # TODO: AGE UPDATES
             age_data = self.get_age_data(soup)

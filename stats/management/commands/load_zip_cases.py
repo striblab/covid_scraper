@@ -15,7 +15,7 @@ class Command(BaseCommand):
     IMPORT_FOLDER = os.path.join(settings.BASE_DIR, 'imports', 'zip_cases')
 
     # FILE_PATH = os.path.join(IMPORT_FOLDER, 'COVID_ZIP_8.3.2020.xlsx')
-    FILE_PATH = os.path.join(IMPORT_FOLDER, 'covid_zip_20200910.csv')
+    FILE_PATH = os.path.join(IMPORT_FOLDER, 'covid_zip_20200917.csv')
 
     def code_cases(self, cases_raw):
         '''Handle <=5 cases, set them to -1'''

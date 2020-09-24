@@ -9,7 +9,7 @@ from django.conf import settings
 from django.db.models import Min, Max, Avg, F, RowRange, Window
 from django.core.management.base import BaseCommand
 # from django.db.models import Avg, F, RowRange, Window
-from stats.models import StatewideTotalDate, StatewideCasesBySampleDate, StatewideTestsDate, StatewideDeathsDate
+from stats.models import StatewideTotalDate, StatewideCasesBySampleDate, StatewideTestsDate, StatewideDeathsDate, StatewideHospitalizationsDate
 
 
 class Command(BaseCommand):
@@ -33,6 +33,13 @@ class Command(BaseCommand):
         for t in tests_reported_dates:
             latest_record = StatewideTestsDate.objects.filter(reported_date=t).values().latest('scrape_date')
             tests_timeseries_values[t] = latest_record
+
+        # Hospitalizations: Get max scrape date for each real date
+        hosp_timeseries_values = {}
+        hosp_reported_dates = StatewideHospitalizationsDate.objects.all().values_list('reported_date', flat=True).distinct()
+        for t in hosp_reported_dates:
+            latest_record = StatewideHospitalizationsDate.objects.filter(reported_date=t).values().latest('scrape_date')
+            hosp_timeseries_values[t] = latest_record
 
         # Deaths: Get max scrape date for each real date
         deaths_timeseries_values = {}
@@ -107,6 +114,31 @@ class Command(BaseCommand):
                     # removed_cases = topline_data['removed_cases']
                 total_cases = topline_data['cumulative_positive_tests']
 
+                if current_date in hosp_timeseries_values:
+                    # print('timeseries')
+                    cr = hosp_timeseries_values[current_date]
+                    new_hosp_admissions = cr['new_hosp_admissions']
+                    # new_hosp_admissions_rolling = round(cr['new_hosp_admissions_rolling'], 1)
+                    new_icu_admissions = cr['new_icu_admissions']
+                    # new_icu_admissions_rolling = round(cr['new_icu_admissions_rolling'], 1)
+                    total_hospitalizations = cr['total_hospitalizations']
+                    total_icu_admissions = cr['total_icu_admissions']
+                    # total_cases = cr['total_cases']
+                    previous_total_hospitalizations = total_hospitalizations
+                    previous_total_icu_admissions = total_icu_admissions
+                else:
+                    # This will usually just be today's values because no samples have come back yet
+                    new_hosp_admissions = 0
+                    # new_hosp_admissions_rolling = 0
+                    new_icu_admissions = 0
+                    # new_icu_admissions_rolling = 0
+                    total_hospitalizations = 0
+                    total_icu_admissions = 0
+
+                    # removed_cases = topline_data['removed_cases']
+                # Not sure if we need this anymore or not
+                total_cases = topline_data['cumulative_positive_tests']
+
                 if current_date <= datetime.date(2020, 3, 28):  # Temp conditional for old test dates
                     new_tests = 0
                     total_tests = 0
@@ -153,6 +185,10 @@ class Command(BaseCommand):
 
                     # 'new_positive_tests': new_cases,
                     # 'removed_cases': topline_data['removed_cases'],
+                    'new_hosp_admissions': new_hosp_admissions,
+                    # 'new_hosp_admissions_rolling': new_hosp_admissions_rolling,
+                    'new_icu_admissions': new_icu_admissions,
+                    # 'new_icu_admissions_rolling': new_icu_admissions_rolling,
                     'total_hospitalized': topline_data['cumulative_hospitalized'],
                     'currently_hospitalized': topline_data['currently_hospitalized'],
                     'currently_in_icu': topline_data['currently_in_icu'],
@@ -177,10 +213,12 @@ class Command(BaseCommand):
         ts_df['daily_pct_positive_rolling'] = ts_df['daily_pct_positive'].rolling(window=7, min_periods=1).mean().round(3)
         ts_df['cases_daily_change_rolling'] = ts_df['cases_daily_change'].rolling(window=7, min_periods=1).mean().round(1)
         ts_df['hosp_total_daily_rolling'] = ts_df['hosp_total_daily_change'].rolling(window=7, min_periods=1).mean().round(1)
+        ts_df['new_hosp_admissions_rolling'] = ts_df['new_hosp_admissions'].rolling(window=7, min_periods=1).mean().round(1)
+        ts_df['new_icu_admissions_rolling'] = ts_df['new_icu_admissions'].rolling(window=7, min_periods=1).mean().round(1)
 
         # Put in a nice order...
         out_df = ts_df[[
-            'date', 'total_confirmed_cases', 'cases_daily_change', 'cases_daily_change_rolling', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_total_sample_date', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'hosp_total_daily_change', 'hosp_total_daily_rolling', 'total_statewide_deaths', 'new_statewide_deaths', 'new_statewide_deaths_rolling', 'total_statewide_recoveries', 'total_completed_tests' , 'new_completed_tests', 'new_completed_tests_rolling', 'daily_pct_positive', 'daily_pct_positive_rolling'
+            'date', 'total_confirmed_cases', 'cases_daily_change', 'cases_daily_change_rolling', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_total_sample_date', 'new_hosp_admissions', 'new_hosp_admissions_rolling', 'new_icu_admissions', 'new_icu_admissions_rolling', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'hosp_total_daily_change', 'hosp_total_daily_rolling', 'total_statewide_deaths', 'new_statewide_deaths', 'new_statewide_deaths_rolling', 'total_statewide_recoveries', 'total_completed_tests' , 'new_completed_tests', 'new_completed_tests_rolling', 'daily_pct_positive', 'daily_pct_positive_rolling'
         ]]
         # print(out_df)
         out_df.to_csv(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_timeseries.csv'), index=False)

@@ -65,6 +65,18 @@ class StatewideCasesBySampleDate(models.Model):
     scrape_date = models.DateField()
 
 
+class StatewideHospitalizationsDate(models.Model):
+    reported_date = models.DateField(null=True)
+    new_hosp_admissions = models.IntegerField(default=0, null=True)
+    # new_non_icu_admissions_rolling = models.FloatField(default=0)
+    new_icu_admissions = models.IntegerField(default=0, null=True)
+    # new_icu_admissions_rolling = models.FloatField(default=0)
+    total_hospitalizations = models.IntegerField(default=0)
+    total_icu_admissions = models.IntegerField(default=0)
+    update_date = models.DateField(null=True)  # The day MDH said this data was last updated
+    scrape_date = models.DateField()
+
+
 class StatewideDeathsDate(models.Model):
     reported_date = models.DateField(null=True)
     new_deaths = models.IntegerField(default=0, null=True)
@@ -103,8 +115,8 @@ class StatewideTotalDate(models.Model):
     cumulative_completed_private = models.IntegerField(default=0)
 
     cumulative_hospitalized = models.IntegerField(default=0)
-    currently_hospitalized = models.IntegerField(default=0, null=True)
-    currently_in_icu = models.IntegerField(default=0, null=True)
+    currently_hospitalized = models.IntegerField(default=0, null=True)  # Deprecated as of 9/4/2020, but have old data
+    currently_in_icu = models.IntegerField(default=0, null=True)  # Deprecated as of 9/4/2020, but have old data
 
     hospitalized_total_daily_change = models.IntegerField(default=0, null=True)
 
