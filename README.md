@@ -17,6 +17,68 @@ python manage.py loaddata covid_scraper/fixtures/County.json
 ## To download the latest county counts
 `python manage.py update_mn_data`
 
+## To update weekly zip data
+1. On Thursdays after 11 a.m., download the weekly file from the MDH weekly report page under "Confirmed Cases by Zip Code of Residence": https://www.health.state.mn.us/diseases/coronavirus/stats/index.html
+
+2. Change the .csv filename to a date format, based on the update date (that Thursday): covid_scraper/covid_scraper/imports/zip_cases/covid_zip_YYYYMMDD.csv
+
+3. Update the file name to be uploaded in `load_zip_cases.py`.
+
+4. Run the management command:
+`
+python manage.py load_zip_cases
+`
+
+5. The updated zipcode data will either get exported on the next scraper run (This is generally what I do), or you can force it earlier with `dump_zip_cases.py`. If you do a manual run, remember to make sure you don't leave a dirty repo in mn_covid_data, otherwise next time you build the scraper in Docker, it will fail to run.
+
+# To fix deaths that are taken off the board
+
+From time to time MDH finds that people who were reported dead were not, in fact, dead. This is fairly tedious to fix in the Django shell.
+
+1. Update the `cumulative_statewide_deaths` field of `StatewideTotalDate` for all dates from the date the death was misreported through today.
+
+Example:
+```
+from stats.models import StatewideTotalDate
+update_days = StatewideTotalDate.objects.filter(scrape_date__gte='2020-09-11').order_by('scrape_date')
+for u in update_days:
+    u.cumulative_statewide_deaths -= 1
+    u.save()
+```
+
+2. Update the county-level daily deaths for the dates the deaths were misreported.
+
+Example:
+```
+from stats.models import CountyTestDate
+update_day = CountyTestDate.objects.get(county__name="Ramsey", scrape_date='2020-08-22')
+update_day.daily_deaths = 2
+update_day.save()
+```
+
+3. Update the county-level cumulative deaths for all the dates since the deaths were misreported.
+
+Example:
+```
+from stats.models import CountyTestDate
+update_days = CountyTestDate.objects.filter(county__name="Ramsey", scrape_date__gte='2020-08-22', scrape_date__lt='2020-10-08').order_by('scrape_date')
+for u in update_days:
+    u.cumulative_deaths -= 1
+    u.save()
+```
+
+4. Update the age stats
+```
+from stats.models import StatewideAgeDate
+update_days = StatewideAgeDate.objects.filter(age_min=75, age_max=79, scrape_date__gte='2020-08-22', scrape_date__lt='2020-10-08').order_by('scrape_date')
+for u in update_days:
+    u.death_count -= 1
+    u.save()
+```
+
+
+The timeseries daily deaths are built from the MDH table, and is re-scraped every day, so those daily figures should be fine.
+
 ## To export new CSVs
 ```
 python manage.py dump_mn_latest_counts

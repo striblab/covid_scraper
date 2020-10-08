@@ -278,7 +278,7 @@ class Command(BaseCommand):
 
         hosp_table = table = soup.find("table", {'id': 'hosptable'})
         hosp_timeseries = self.full_table_parser(hosp_table)
-        print(hosp_timeseries)
+        # print(hosp_timeseries)
         # print(deaths_timeseries)
 
         if len(hosp_timeseries) > 0:
@@ -371,22 +371,22 @@ class Command(BaseCommand):
                 else:
                   reported_date = self.parse_mdh_date(c['Date reported'], today)
 
-            # check for hyphen in deaths table, set to null if hyphen exists
-            if c['Newly reported deaths (daily)'] in ['-', '-\xa0\xa0 ']:
-              new_deaths = None
-            else:
-              new_deaths = self.parse_comma_int(c['Newly reported deaths (daily)'])
+                # check for hyphen in deaths table, set to null if hyphen exists
+                if c['Newly reported deaths (daily)'] in ['', '-', '-\xa0\xa0 ']:
+                  new_deaths = None
+                else:
+                  new_deaths = self.parse_comma_int(c['Newly reported deaths (daily)'])
 
-            total_deaths = self.parse_comma_int(c['Total deaths (cumulative)'])
+                total_deaths = self.parse_comma_int(c['Total deaths (cumulative)'])
 
-            std = StatewideDeathsDate(
-              reported_date=reported_date,
-              new_deaths=new_deaths,
-              total_deaths=total_deaths,
-              update_date=update_date,
-              scrape_date=today,
-            )
-            death_objs.append(std)
+                std = StatewideDeathsDate(
+                  reported_date=reported_date,
+                  new_deaths=new_deaths,
+                  total_deaths=total_deaths,
+                  update_date=update_date,
+                  scrape_date=today,
+                )
+                death_objs.append(std)
             print('Adding {} records of deaths timeseries data'.format(len(death_objs)))
             StatewideDeathsDate.objects.bulk_create(death_objs)
 
