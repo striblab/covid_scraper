@@ -302,13 +302,13 @@ class Command(BaseCommand):
                 else:
                     new_hospitalizations = self.parse_comma_int(c['Cases admitted to a hospital'])
 
-                if c['Cases    admitted to an ICU'] in ['-', '-\xa0\xa0 ']:
+                if c['Cases admitted to an ICU'] in ['-', '-\xa0\xa0 ']:
                     new_icu_admissions = None
                 else:
-                    new_icu_admissions = self.parse_comma_int(c['Cases    admitted to an ICU'])
+                    new_icu_admissions = self.parse_comma_int(c['Cases admitted to an ICU'])
 
-                total_hospitalizations = self.parse_comma_int(c['Total hospitalizations    (cumulative)'])
-                total_icu_admissions = self.parse_comma_int(c['Total ICU hospitalizations    (cumulative)'])
+                total_hospitalizations = self.parse_comma_int(c['Total hospitalizations (cumulative)'])
+                total_icu_admissions = self.parse_comma_int(c['Total ICU hospitalizations (cumulative)'])
 
                 std = StatewideHospitalizationsDate(
                     reported_date=reported_date,
@@ -417,7 +417,7 @@ class Command(BaseCommand):
         hosp_table = soup.find("table", {'id': 'hosptable'})
         hosp_table_latest = self.detail_tables_regex(hosp_table)
         print(hosp_table_latest)
-        output['cumulative_hospitalized'] = self.parse_comma_int(hosp_table_latest['Total hospitalizations    (cumulative)'])
+        output['cumulative_hospitalized'] = self.parse_comma_int(hosp_table_latest['Total hospitalizations (cumulative)'])
          # Not used except to add up
 
         # '*{}* total hospitalizations (*{}* new admissions reported today)\n\n'.format(f'{total_hospitalizations:,}', self.change_sign(new_deaths))
