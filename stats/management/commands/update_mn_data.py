@@ -199,18 +199,25 @@ class Command(BaseCommand):
                 else:
                     sample_date = self.parse_mdh_date(c['Specimen collection date'], today)
 
-                if c['Total positive cases (cumulative)'] == '':
-                    new_cases = '0'
+                new_pcr_tests = self.parse_comma_int(c['Confirmed cases (PCR positive)'])
+                new_antigen_tests = self.parse_comma_int(c['Probable cases (Antigen positive)'])
+                if new_antigen_tests:  # Handle old dates
+                    new_cases = int(new_pcr_tests) + int(new_antigen_tests)
                 else:
-                    new_cases = c['Total positive cases (cumulative)']
+                    new_cases = new_pcr_tests
+
+                # if c['Total positive cases (cumulative)'] == '':
+                #     new_cases = '0'
+                # else:
+                #     new_cases = c['Total positive cases (cumulative)']
 
                 co = StatewideCasesBySampleDate(
                     sample_date=sample_date,
-                    new_cases=self.parse_comma_int(new_cases),
+                    new_cases=new_cases,
                     total_cases=self.parse_comma_int(c['Total positive cases (cumulative)']),
 
-                    new_pcr_tests = self.parse_comma_int(c['Confirmed cases (PCR positive)']),
-                    new_antigen_tests = self.parse_comma_int(c['Probable cases (Antigen positive)']),
+                    new_pcr_tests = new_pcr_tests,
+                    new_antigen_tests = new_antigen_tests,
                     total_pcr_tests = self.parse_comma_int(c['Total confirmed cases (cumulative)']),
                     total_antigen_tests = self.parse_comma_int(c['Total probable cases (cumulative)']),
 

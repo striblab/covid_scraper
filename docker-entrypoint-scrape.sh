@@ -49,7 +49,7 @@ python manage.py dump_mn_latest_counts
 # --acl public-read
 
 # Only dump if csvs have many lines or were produced in last few minutes
-LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$COUNTY_LATEST_FILENAME.csv))
+LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv))
 
 if (("${LINE_COUNT[0]}" > 2)); then
   echo "***** Uploading latest county count CSVs to S3. *****"
