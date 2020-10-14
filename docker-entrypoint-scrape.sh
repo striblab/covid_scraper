@@ -49,20 +49,20 @@ python manage.py dump_mn_latest_counts
 # --acl public-read
 
 # Only dump if csvs have many lines or were produced in last few minutes
-LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv))
+LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$COUNTY_LATEST_FILENAME.csv))
 
 if (("${LINE_COUNT[0]}" > 2)); then
   echo "***** Uploading latest county count CSVs to S3. *****"
   download_datetime=$(date '+%Y%m%d%H%M%S');
 
   echo Pushing csvs to S3...
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TESTS_FILENAME.csv \
-  --content-type=text/csv \
-  --acl public-read
-
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TESTS_FILENAME-$download_datetime.csv \
-  --content-type=text/csv \
-  --acl public-read
+  # aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TESTS_FILENAME.csv \
+  # --content-type=text/csv \
+  # --acl public-read
+  #
+  # aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TESTS_FILENAME-$download_datetime.csv \
+  # --content-type=text/csv \
+  # --acl public-read
 
   aws s3 cp $EXPORTS_ROOT/$COUNTY_LATEST_FILENAME.json s3://$S3_URL/json/$COUNTY_LATEST_FILENAME.json \
   --content-type=application/json \
