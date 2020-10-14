@@ -29,7 +29,7 @@ class Command(BaseCommand):
         # print(start_date)
         records_by_county = []
         for c in County.objects.all().order_by('name'):
-            records = CountyTestDate.objects.filter(county=c).values('scrape_date', 'update_date', 'county__name', 'daily_count', 'cumulative_count', 'daily_deaths', 'cumulative_deaths')
+            records = CountyTestDate.objects.filter(county=c).values('scrape_date', 'update_date', 'county__name', 'daily_total_cases', 'cumulative_count', 'daily_deaths', 'cumulative_deaths')
             county_running_total = 0
             # print(records)
             for d in dates:
@@ -45,7 +45,7 @@ class Command(BaseCommand):
                             'scrape_date': d,
                             'update_date': d,
                             'county__name': c.name,
-                            'daily_count': 0,
+                            'daily_total_cases': 0,
                             'cumulative_count': county_running_total,
                             'daily_deaths': 0,
                             'cumulative_deaths': 0
@@ -59,7 +59,7 @@ class Command(BaseCommand):
             row = {
                 'date': r['scrape_date'].strftime('%Y-%m-%d'),
                 'county': r['county__name'],
-                'daily_cases': r['daily_count'],
+                'daily_cases': r['daily_total_cases'],
                 'cumulative_cases': r['cumulative_count'],
                 'daily_deaths': r['daily_deaths'],
                 'cumulative_deaths': r['cumulative_deaths']
@@ -83,7 +83,7 @@ class Command(BaseCommand):
         for county in County.objects.all():
             for c in CountyTestDate.objects.filter(county=county).annotate(
                 cases_rolling=Window(
-                    expression=Avg('daily_count'),
+                    expression=Avg('daily_total_cases'),
                     order_by=F('scrape_date').asc(),
                     frame=RowRange(start=-6,end=0)
                 )
@@ -108,7 +108,7 @@ class Command(BaseCommand):
                 'scrape_date',
                 'update_date',
                 'county__name',
-                'daily_count',
+                'daily_total_cases',
                 'cumulative_count',
                 'daily_deaths',
                 'cumulative_deaths',
@@ -125,7 +125,7 @@ class Command(BaseCommand):
                 #     pass  # Ignore if there's no new results for today
                 # else:
                 #     # print(c.scrape_date, c.county.name, c.cumulative_count)
-                    # print(c['county__name'], c['daily_count'], c['pct_chg'], c['pct_chg_7day'])
+                    # print(c['county__name'], c['daily_total_cases'], c['pct_chg'], c['pct_chg_7day'])
                     cases_weekly_change = c['cumulative_count'] - c['cases_total_weekago']
                     if c['cumulative_count'] < 100:
                         cases_weekly_pct_chg = None
@@ -135,7 +135,7 @@ class Command(BaseCommand):
                     row = {
                         'date': c['scrape_date'].strftime('%Y-%m-%d'),
                         'county': c['county__name'],
-                        'daily_cases': c['daily_count'],
+                        'daily_cases': c['daily_total_cases'],
                         'cumulative_cases': c['cumulative_count'],
                         'cases_per_1k': round(c['cumulative_count'] / (county.pop_2019 / 1000), 1),
                         'daily_deaths': c['daily_deaths'],
