@@ -20,6 +20,9 @@ class Command(BaseCommand):
     OUTGEOJSON = os.path.join(settings.BASE_DIR, 'exports', 'mn_zctas.geojson')
     OUTMBTILES = os.path.join(settings.BASE_DIR, 'exports', 'mn_zctas.mbtiles')
 
+    CENTROID_OUTGEOJSON = os.path.join(settings.BASE_DIR, 'exports', 'mn_zctas_centroids.geojson')
+    CENTROID_OUTMBTILES = os.path.join(settings.BASE_DIR, 'exports', 'mn_zctas_centroids.mbtiles')
+
     def handle(self, *args, **options):
 
         print('Loading boundary shapefile ...')
@@ -63,3 +66,12 @@ class Command(BaseCommand):
 
         print('Exporting MBTiles...')
         os.system('tippecanoe -o {} -Z 4 -z 13 {} --force --use-attribute-for-id=zip'.format(self.OUTMBTILES, self.OUTGEOJSON))
+
+        print('Exporting centroid GeoJSON...')
+        zips_map_merged['geom_utm'] = zips_map_merged['geometry'].to_crs(26915)
+        zips_map_merged['geometry'] = zips_map_merged['geom_utm'].centroid.to_crs(4326)
+        zips_map_merged.drop(columns=['geom_utm'], inplace=True)
+        zips_map_merged.to_file(self.CENTROID_OUTGEOJSON, driver='GeoJSON')
+
+        print('Exporting centroid MBTiles...')
+        os.system('tippecanoe -o {} -Z 4 -z 13 {} --force --use-attribute-for-id=zip'.format(self.CENTROID_OUTMBTILES, self.CENTROID_OUTGEOJSON))

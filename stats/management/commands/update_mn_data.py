@@ -36,9 +36,10 @@ class Command(BaseCommand):
         county_list = self.full_table_parser(county_table)
 
         for county in county_list:
-            if county['County'] != 'Unknown/missing':
+            county_name = ' '.join(county['County'].split()).replace(' County', '')
+            if county_name != 'Unknown/missing':
                 county_data.append({
-                    'county': county['County'],
+                    'county': county_name,
                     'cumulative_count': self.parse_comma_int(county['Total cases']),
                     'cumulative_confirmed_cases': self.parse_comma_int(county['Total confirmed cases']),
                     'cumulative_probable_cases': self.parse_comma_int(county['Total probable cases']),
@@ -249,13 +250,18 @@ class Command(BaseCommand):
 
                 new_state_tests = self.parse_comma_int(c['Completed PCR tests reported from the MDH Public Health Lab'])
                 new_external_tests = self.parse_comma_int(c['Completed PCR tests reported from external laboratories'])
-                new_tests = new_state_tests + new_external_tests
+
                 total_tests = self.parse_comma_int(c['Total approximate number of completed tests (cumulative)'])
 
-                new_pcr_tests = new_state_tests + new_external_tests
                 new_antigen_tests = self.parse_comma_int(c['Completed antigen tests reported from external laboratories'])
                 total_pcr_tests = self.parse_comma_int(c['Total approximate number of completed PCR tests (cumulative)'])
                 total_antigen_tests = self.parse_comma_int(c['Total approximate number of completed antigen tests (cumulative)'])
+
+                new_pcr_tests = new_state_tests + new_external_tests
+                if new_antigen_tests:
+                    new_tests = new_pcr_tests + new_antigen_tests
+                else:
+                    new_tests = new_pcr_tests
 
                 std = StatewideTestsDate(
                     reported_date=reported_date,
@@ -507,24 +513,24 @@ class Command(BaseCommand):
         # newly_reported_cases_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported cases')).find_parent('td').find('strong').text)
         # print(int(tests_timeseries[len(tests_timeseries) - 1]['Total approximate number of completed tests '].replace(',', '')))
 
-        mdh_tests = 0
-        private_tests = 0
+        # mdh_tests = 0
+        # private_tests = 0
+        #
+        # tests_table = table = soup.find("table", {'id': 'labtable'})
+        # tests_timeseries = self.full_table_parser(tests_table)
 
-        tests_table = table = soup.find("table", {'id': 'labtable'})
-        tests_timeseries = self.full_table_parser(tests_table)
+        # for c in tests_timeseries:
+        #     if c['Date reported to MDH'] == 'Unknown/missing':
+        #         continue
+        #     else:
+        #         if c['Completed PCR tests reported from the MDH Public Health Lab'] == '-\xa0\xa0 ':
+        #             continue
+        #         else:
+        #             mdh_tests = mdh_tests + self.parse_comma_int(c['Completed PCR tests reported from the MDH Public Health Lab'])
+        #         private_tests = private_tests + self.parse_comma_int(c['Completed PCR tests reported from external laboratories'])
 
-        for c in tests_timeseries:
-            if c['Date reported to MDH'] == 'Unknown/missing':
-                continue
-            else:
-                if c['Completed PCR tests reported from the MDH Public Health Lab'] == '-\xa0\xa0 ':
-                    continue
-                else:
-                    mdh_tests = mdh_tests + self.parse_comma_int(c['Completed PCR tests reported from the MDH Public Health Lab'])
-                private_tests = private_tests + self.parse_comma_int(c['Completed PCR tests reported from external laboratories'])
-
-        output['cumulative_completed_mdh'] = mdh_tests
-        output['cumulative_completed_private'] = private_tests
+        # output['cumulative_completed_mdh'] = mdh_tests
+        # output['cumulative_completed_private'] = private_tests
 
         uls = soup.find_all('ul')
         for ul in uls:
@@ -578,16 +584,19 @@ class Command(BaseCommand):
         num_rows = len(rows)
         data_rows = []
         for k, row in enumerate(rows):
+            # print(row)
             if k == 0:
                 first_row = row.find_all("th")
                 col_names = [' '.join(th.text.split()).replace('<br>', ' ') for th in first_row]
             else:
                 data_row = {}
                 cells = row.find_all(["th", "td"])
-                for k, c in enumerate(col_names):
-                    # print(cells[k].text)
-                    data_row[c] = cells[k].text
-                data_rows.append(data_row)
+                if len(cells) > 0:  # Filter out bad TRs
+                    for k, c in enumerate(col_names):
+                        # print(cells[k].text)
+
+                        data_row[c] = cells[k].text
+                    data_rows.append(data_row)
 
         return data_rows
 
@@ -742,8 +751,8 @@ class Command(BaseCommand):
             current_statewide_observation.deaths_daily_change = deaths_daily_change
 
             current_statewide_observation.cumulative_completed_tests = total_statewide_tests
-            current_statewide_observation.cumulative_completed_mdh = statewide_data['cumulative_completed_mdh']
-            current_statewide_observation.cumulative_completed_private = statewide_data['cumulative_completed_private']
+            # current_statewide_observation.cumulative_completed_mdh = statewide_data['cumulative_completed_mdh']
+            # current_statewide_observation.cumulative_completed_private = statewide_data['cumulative_completed_private']
             current_statewide_observation.cumulative_hospitalized = statewide_data['cumulative_hospitalized']
             # current_statewide_observation.currently_hospitalized = statewide_data['currently_hospitalized']
             # current_statewide_observation.currently_in_icu = statewide_data['currently_in_icu']
@@ -768,8 +777,8 @@ class Command(BaseCommand):
                     deaths_daily_change=deaths_daily_change,
                     # cumulative_positive_tests=statewide_data['cumulative_positive_tests'],
                     cumulative_completed_tests=total_statewide_tests,
-                    cumulative_completed_mdh=statewide_data['cumulative_completed_mdh'],
-                    cumulative_completed_private=statewide_data['cumulative_completed_private'],
+                    # cumulative_completed_mdh=statewide_data['cumulative_completed_mdh'],
+                    # cumulative_completed_private=statewide_data['cumulative_completed_private'],
                     cumulative_hospitalized=statewide_data['cumulative_hospitalized'],
                     # currently_hospitalized=statewide_data['currently_hospitalized'],
                     # currently_in_icu=statewide_data['currently_in_icu'],

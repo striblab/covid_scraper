@@ -147,7 +147,6 @@ class Command(BaseCommand):
                     if current_date - timedelta(days=1) in tests_timeseries_values:
                         tr = tests_timeseries_values[current_date - timedelta(days=1)]
                         new_tests = tr['new_tests']
-                        new_tests_rolling = tr['new_tests_rolling']
                         total_tests = tr['total_tests']
                         # print('using shifted mdh timeseries')
                     elif current_date in topline_timeseries_values:
@@ -167,6 +166,13 @@ class Command(BaseCommand):
                         daily_pct_positive = None
 
                 previous_total_tests = total_tests
+
+                if current_date <= datetime.date(2020, 3, 28):
+                    new_tests_rolling = None
+                elif 'new_tests_rolling' in tr:
+                    new_tests_rolling = round(tr['new_tests_rolling'], 1)
+                else:
+                    new_tests_rolling = None
 
 #                     cases_daily_change <- Difference between total yesterday and today
 # cases_newly_reported <- "new" cases per MDH, should add up to daily change when combined with cases_removed
@@ -200,7 +206,7 @@ class Command(BaseCommand):
                     'total_statewide_recoveries': topline_data['cumulative_statewide_recoveries'],
                     'total_completed_tests': '' if current_date <= datetime.date(2020, 3, 28) else total_tests,
                     'new_completed_tests': '' if current_date <= datetime.date(2020, 3, 28) else new_tests,
-                    'new_completed_tests_rolling': '' if current_date <= datetime.date(2020, 3, 28) else round(new_tests_rolling, 1),
+                    'new_completed_tests_rolling': new_tests_rolling,
                     'daily_pct_positive': daily_pct_positive,
                 }
                 rows.append(row)
