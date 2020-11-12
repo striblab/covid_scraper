@@ -27,7 +27,14 @@ class Command(BaseCommand):
             death_total = raw_json['death']
             utc = pytz.utc
             central = timezone('US/Central')
+
+            # CTP messed up their timestamps to include 24, which doesn't exist in python. Logic check here:
+            if '24' in raw_json['lastModified']:
+                raw_json['lastModified'] = raw_json['lastModified'][0:11] + '00:00:00Z'
+
             last_update = utc.localize(datetime.strptime(raw_json['lastModified'], '%Y-%m-%dT%H:%M:%S%fZ')).astimezone(central).strftime('%Y-%m-%d %H:%M')
+
+            # print(datetime.fromtimestamp(raw_json['lastModified'], '%Y-%m-%dT%H:%M:%S%fZ'))
 
             out_dict = {
                 'death_total': f'{death_total:,}',
