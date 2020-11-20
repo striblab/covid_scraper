@@ -41,6 +41,15 @@ class Command(BaseCommand):
             latest_record = StatewideHospitalizationsDate.objects.filter(reported_date=t).values().latest('scrape_date')
             hosp_timeseries_values[t] = latest_record
 
+        hosp_totals_values = {}
+        hosp_scrape_dates =  StatewideHospitalizationsDate.objects.all().values_list('scrape_date', flat=True).distinct()
+        for t in hosp_scrape_dates:
+            try:
+                total_record = StatewideHospitalizationsDate.objects.get(scrape_date=t, reported_date=None).__dict__
+            except:
+                total_record = StatewideHospitalizationsDate.objects.filter(scrape_date=t).latest('reported_date').__dict__
+            hosp_totals_values[t] = total_record
+
         # Deaths: Get max scrape date for each real date
         deaths_timeseries_values = {}
         deaths_reported_dates = StatewideDeathsDate.objects.all().values_list('reported_date', flat=True).distinct()
@@ -76,6 +85,9 @@ class Command(BaseCommand):
         total_cases_sample_date = 0
         previous_total_deaths = 0
         previous_total_tests = 0
+
+        total_hospitalizations = 0
+        total_icu_admissions = 0
         rows = []
         # Go through all dates and check for either timeseries or, failing that, topline data
         while current_date <= max_date:
@@ -114,26 +126,52 @@ class Command(BaseCommand):
                     # removed_cases = topline_data['removed_cases']
                 total_cases = topline_data['cumulative_positive_tests']
 
+                if current_date in hosp_totals_values:
+                    ht = hosp_totals_values[current_date]
+                    hosp_total_daily_change = ht['total_hospitalizations'] - total_hospitalizations
+
+                    if total_icu_admissions:
+                        icu_total_daily_change = ht['total_icu_admissions'] - total_icu_admissions
+                    else:
+                        icu_total_daily_change = None
+
+                    total_hospitalizations = ht['total_hospitalizations']
+                    total_icu_admissions = ht['total_icu_admissions']
+                else:
+                    hosp_total_daily_change = topline_data['hospitalized_total_daily_change']
+                    icu_total_daily_change = None
+
+                    total_hospitalizations = topline_data['cumulative_hospitalized']
+                    total_icu_admissions = None
+
                 if current_date in hosp_timeseries_values:
                     # print('timeseries')
                     cr = hosp_timeseries_values[current_date]
                     new_hosp_admissions = cr['new_hosp_admissions']
-                    # new_hosp_admissions_rolling = round(cr['new_hosp_admissions_rolling'], 1)
                     new_icu_admissions = cr['new_icu_admissions']
-                    # new_icu_admissions_rolling = round(cr['new_icu_admissions_rolling'], 1)
-                    total_hospitalizations = cr['total_hospitalizations']
-                    total_icu_admissions = cr['total_icu_admissions']
-                    # total_cases = cr['total_cases']
-                    previous_total_hospitalizations = total_hospitalizations
-                    previous_total_icu_admissions = total_icu_admissions
+
+                    # total_hospitalizations = cr['total_hospitalizations']
+                    # total_icu_admissions = cr['total_icu_admissions']
+
+                    # The daily totals don't work quite right because of "missing" dates
+                    # try:
+                    #     hosp_date_missing = StatewideHospitalizationsDate.objects.get(scrape_date=current_date, reported_date=None)
+                    #
+                    #     total_hospitalizations = hosp_date_missing.total_hospitalizations
+                    #     total_icu_admissions = hosp_date_missing.total_icu_admissions
+                    # except:
+                    #     total_hospitalizations = cr['total_hospitalizations']
+                    #     total_icu_admissions = cr['total_icu_admissions']
                 else:
                     # This will usually just be today's values because no samples have come back yet
                     new_hosp_admissions = 0
-                    # new_hosp_admissions_rolling = 0
                     new_icu_admissions = 0
-                    # new_icu_admissions_rolling = 0
-                    total_hospitalizations = 0
-                    total_icu_admissions = 0
+
+                    # total_hospitalizations = 0
+                    # total_icu_admissions = 0
+
+                    # hosp_total_daily_change = 0
+                    # icu_total_daily_change = 0
 
                     # removed_cases = topline_data['removed_cases']
                 # Not sure if we need this anymore or not
@@ -174,32 +212,26 @@ class Command(BaseCommand):
                 else:
                     new_tests_rolling = None
 
-#                     cases_daily_change <- Difference between total yesterday and today
-# cases_newly_reported <- "new" cases per MDH, should add up to daily change when combined with cases_removed
-# cases_removed <- MDH removals
-# cases_sample_date <- Data from time series, which will lag by several days
 
                 row = {
                     'date': current_date.strftime('%Y-%m-%d'),
                     'total_confirmed_cases': total_cases,
                     'cases_daily_change': topline_data['cases_daily_change'],
-                    # 'cases_daily_change_rolling': round(topline_data['cases_daily_change_rolling'], 1),
                     'cases_newly_reported': topline_data['cases_newly_reported'],
                     'cases_removed': topline_data['removed_cases'],
                     'cases_sample_date': new_cases_sample_date,
                     'cases_total_sample_date': total_cases_sample_date,
-
-                    # 'new_positive_tests': new_cases,
-                    # 'removed_cases': topline_data['removed_cases'],
                     'new_hosp_admissions': new_hosp_admissions,
-                    # 'new_hosp_admissions_rolling': new_hosp_admissions_rolling,
                     'new_icu_admissions': new_icu_admissions,
-                    # 'new_icu_admissions_rolling': new_icu_admissions_rolling,
-                    'total_hospitalized': topline_data['cumulative_hospitalized'],
+                    # 'hosp_total_daily_change': topline_data['hospitalized_total_daily_change'],
+                    'hosp_total_daily_change': hosp_total_daily_change,
+                    'icu_total_daily_change': icu_total_daily_change,
+
+                    # 'total_icu_admissions': total_icu_admissions,
+                    'total_hospitalized': total_hospitalizations,
+                    'total_icu_admissions': total_icu_admissions,
                     'currently_hospitalized': topline_data['currently_hospitalized'],
                     'currently_in_icu': topline_data['currently_in_icu'],
-                    'hosp_total_daily_change': topline_data['hospitalized_total_daily_change'],
-                    # 'hosp_total_daily_rolling': topline_data['hosp_total_daily_rolling'],
                     'total_statewide_deaths': topline_data['cumulative_statewide_deaths'],
                     'new_statewide_deaths': new_deaths,
                     'new_statewide_deaths_rolling': new_deaths_rolling,  # Calculated during record creation
@@ -216,28 +248,21 @@ class Command(BaseCommand):
 
         # Run through pandas to calculate rolling averages. For some of this it could be done in Django-land, but for positive pct, for example, it's hard to mix and match in a django query. So might as well do them all the same.
         ts_df = pd.DataFrame(rows)
+        # ts_df['hosp_total_daily_change'] = ts_df['total_hospitalized'].diff()
+        # ts_df['icu_total_daily_change'] = ts_df['total_icu_admissions'].diff()
+
         ts_df['daily_pct_positive_rolling'] = ts_df['daily_pct_positive'].rolling(window=7, min_periods=1).mean().round(3)
         ts_df['cases_daily_change_rolling'] = ts_df['cases_daily_change'].rolling(window=7, min_periods=1).mean().round(1)
         ts_df['cases_sample_date_rolling'] = ts_df['cases_sample_date'].rolling(window=7, min_periods=1).mean().round(1)
         ts_df['hosp_total_daily_rolling'] = ts_df['hosp_total_daily_change'].rolling(window=7, min_periods=1).mean().round(1)
+        ts_df['icu_total_daily_rolling'] = ts_df['icu_total_daily_change'].rolling(window=7, min_periods=1).mean().round(1)
         ts_df['new_hosp_admissions_rolling'] = ts_df['new_hosp_admissions'].rolling(window=7, min_periods=1).mean().round(1)
         ts_df['new_icu_admissions_rolling'] = ts_df['new_icu_admissions'].rolling(window=7, min_periods=1).mean().round(1)
 
         # Put in a nice order...
         out_df = ts_df[[
-            'date', 'total_confirmed_cases', 'cases_daily_change', 'cases_daily_change_rolling', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_sample_date_rolling', 'cases_total_sample_date', 'new_hosp_admissions', 'new_hosp_admissions_rolling', 'new_icu_admissions', 'new_icu_admissions_rolling', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'hosp_total_daily_change', 'hosp_total_daily_rolling', 'total_statewide_deaths', 'new_statewide_deaths', 'new_statewide_deaths_rolling', 'total_statewide_recoveries', 'total_completed_tests' , 'new_completed_tests', 'new_completed_tests_rolling', 'daily_pct_positive', 'daily_pct_positive_rolling'
+            'date', 'total_confirmed_cases', 'cases_daily_change', 'cases_daily_change_rolling', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_sample_date_rolling', 'cases_total_sample_date', 'new_hosp_admissions', 'new_hosp_admissions_rolling', 'new_icu_admissions', 'new_icu_admissions_rolling', 'total_hospitalized', 'total_icu_admissions', 'currently_hospitalized', 'currently_in_icu', 'hosp_total_daily_change', 'hosp_total_daily_rolling', 'icu_total_daily_change', 'icu_total_daily_rolling', 'total_statewide_deaths', 'new_statewide_deaths', 'new_statewide_deaths_rolling', 'total_statewide_recoveries', 'total_completed_tests' , 'new_completed_tests', 'new_completed_tests_rolling', 'daily_pct_positive', 'daily_pct_positive_rolling'
         ]]
-        # print(out_df)
+
         out_df.to_csv(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_timeseries.csv'), index=False)
         out_df.to_json(os.path.join(settings.BASE_DIR, 'exports', 'mn_statewide_timeseries.json'), orient='records')
-
-
-        # with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_statewide_timeseries.csv'), 'w') as csvfile:
-        #     fieldnames = ['date', 'total_confirmed_cases', 'cases_daily_change', 'cases_daily_change_rolling', 'cases_newly_reported', 'cases_removed', 'cases_sample_date', 'cases_total_sample_date', 'total_hospitalized', 'currently_hospitalized', 'currently_in_icu', 'hosp_total_daily_change', 'hosp_total_daily_rolling', 'total_statewide_deaths', 'new_statewide_deaths', 'new_statewide_deaths_rolling', 'total_statewide_recoveries', 'total_completed_tests' , 'new_completed_tests', 'new_completed_tests_rolling', 'daily_pct_positive']
-        #
-        #     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        #     writer.writeheader()
-        #     writer.writerows(rows)
-        #
-        # with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_statewide_timeseries.json'), 'w') as jsonfile:
-        #     jsonfile.write(json.dumps(rows))

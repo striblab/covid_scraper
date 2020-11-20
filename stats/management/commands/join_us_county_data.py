@@ -23,8 +23,8 @@ class Command(BaseCommand):
     TIMESERIES_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_timeseries.csv')
     LATEST_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_latest.csv')
     LATEST_JSON_EXPORT_PATH = os.path.join(settings.BASE_DIR, 'exports', 'national_cases_deaths_by_county_latest.json')
-    MIDWEST_EMERGING_COUNTIES_PATH = os.path.join(settings.BASE_DIR, 'exports', 'midwest_emerging_counties.csv')
-    MIDWEST_EMERGING_COUNTIES_WIDE_PATH = os.path.join(settings.BASE_DIR, 'exports', 'midwest_emerging_counties_wide.csv')
+    # MIDWEST_EMERGING_COUNTIES_PATH = os.path.join(settings.BASE_DIR, 'exports', 'midwest_emerging_counties.csv')
+    # MIDWEST_EMERGING_COUNTIES_WIDE_PATH = os.path.join(settings.BASE_DIR, 'exports', 'midwest_emerging_counties_wide.csv')
 
     EXTRANEOUS_GEOGRAPHIES = [
         {
@@ -277,7 +277,4 @@ class Command(BaseCommand):
             out_df.to_csv(self.LATEST_EXPORT_PATH, index=False)
             self.df_to_geojson(out_df)
 
-            # with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_statewide_timeseries.json'), 'w') as jsonfile:
-            #     jsonfile.write(json.dumps(rows))
-
-            self.build_emerging_counties(df_subset)
+            # self.build_emerging_counties(df_subset)

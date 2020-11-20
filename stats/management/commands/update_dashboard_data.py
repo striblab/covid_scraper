@@ -22,6 +22,7 @@ class Command(BaseCommand):
         {'orig_file': 'https://mn.gov/covid19/assets/SourceofCCS_Table_tcm1148-430849.csv', 'download_base_name': 'db_crit_care_supply_sources_{}.csv'},
         {'orig_file': 'https://mn.gov/covid19/assets/ProcurementOrderDeliveryCCS_Table_tcm1148-430850.csv', 'download_base_name': 'db_procurement_{}.csv'},
         {'orig_file': 'https://mn.gov/covid19/assets/DialBackCSV_tcm1148-431875.csv', 'download_base_name': 'db_dialback_{}.csv'},
+        {'orig_file': 'https://mn.gov/covid19/assets/HospitalCapacity_HistoricCSV_tcm1148-449110.csv', 'download_base_name': 'db_hosp_cap_{}.csv'}
     ]
 
     def get_csv(self):

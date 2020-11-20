@@ -10,8 +10,8 @@ STATEWIDE_TIMESERIES_FILENAME=mn_statewide_timeseries
 COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
 NATIONAL_TIMESERIES_FILENAME=national_cases_deaths_by_county_timeseries
 NATIONAL_LATEST_FILENAME=national_cases_deaths_by_county_latest
-MIDWEST_EMERGING_COUNTIES_PATH=midwest_emerging_counties
-MIDWEST_EMERGING_COUNTIES_WIDE_PATH=midwest_emerging_counties_wide
+# MIDWEST_EMERGING_COUNTIES_PATH=midwest_emerging_counties
+# MIDWEST_EMERGING_COUNTIES_WIDE_PATH=midwest_emerging_counties_wide
 US_LATEST_EXPORT_PATH_NYT=us_latest_nyt
 US_LATEST_EXPORT_PATH_CTP=us_latest_ctp
 STATES_LATEST_EXPORT_PATH=states_latest_ctp
@@ -168,7 +168,7 @@ printf "\n"
 # Dashboard
 python manage.py update_dashboard_data
 
-for DASHPATH in db_procurement_legacy_* db_days_on_hand_chart_* db_days_on_hand_tbl_* db_crit_care_supply_sources_* db_dialback_*
+for DASHPATH in db_hosp_cap_* db_procurement_* db_days_on_hand_chart_* db_days_on_hand_tbl_* db_crit_care_supply_sources_* db_dialback_*
 do
 
   LATEST_SUPPLIES_SCRAPE=($(find $EXPORTS_ROOT/dashboard -name $DASHPATH | sort | tail -n 1))
@@ -222,29 +222,29 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/$NATIONAL_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/$NATIONAL_TIMESERIES_FILENAME.csv \
-  --content-type=text/csv \
-  --acl public-read
+  # aws s3 cp $EXPORTS_ROOT/$NATIONAL_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/$NATIONAL_TIMESERIES_FILENAME.csv \
+  # --content-type=text/csv \
+  # --acl public-read
 
   # aws s3 cp $EXPORTS_ROOT/$NATIONAL_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$NATIONAL_TIMESERIES_FILENAME-$download_datetime.csv \
   # --content-type=text/csv \
   # --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_PATH.csv s3://$S3_URL/csv/$MIDWEST_EMERGING_COUNTIES_PATH.csv \
-  --content-type=text/csv \
-  --acl public-read
-
-  aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_PATH.csv s3://$S3_URL/csv/versions/$MIDWEST_EMERGING_COUNTIES_PATH-$download_datetime.csv \
-  --content-type=text/csv \
-  --acl public-read
-
-  aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH.csv s3://$S3_URL/csv/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH.csv \
-  --content-type=text/csv \
-  --acl public-read
-
-  aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH.csv s3://$S3_URL/csv/versions/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH-$download_datetime.csv \
-  --content-type=text/csv \
-  --acl public-read
+  # aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_PATH.csv s3://$S3_URL/csv/$MIDWEST_EMERGING_COUNTIES_PATH.csv \
+  # --content-type=text/csv \
+  # --acl public-read
+  #
+  # aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_PATH.csv s3://$S3_URL/csv/versions/$MIDWEST_EMERGING_COUNTIES_PATH-$download_datetime.csv \
+  # --content-type=text/csv \
+  # --acl public-read
+  #
+  # aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH.csv s3://$S3_URL/csv/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH.csv \
+  # --content-type=text/csv \
+  # --acl public-read
+  #
+  # aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH.csv s3://$S3_URL/csv/versions/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH-$download_datetime.csv \
+  # --content-type=text/csv \
+  # --acl public-read
 
 else
   echo "***** WARNING WARNING WARNING: The newest file is very short. Taking no further action. *****"

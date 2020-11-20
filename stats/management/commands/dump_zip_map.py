@@ -20,7 +20,7 @@ class Command(BaseCommand):
     OUTGEOJSON = os.path.join(settings.BASE_DIR, 'exports', 'mn_zctas.geojson')
     OUTMBTILES = os.path.join(settings.BASE_DIR, 'exports', 'mn_zctas.mbtiles')
 
-    CENTROID_OUTGEOJSON = os.path.join(settings.BASE_DIR, 'exports', 'mn_zctas_centroids.geojson')
+    CENTROID_OUTGEOJSON = os.path.join(settings.BASE_DIR, 'exports', 'mn_zctas_centroids.json')
     CENTROID_OUTMBTILES = os.path.join(settings.BASE_DIR, 'exports', 'mn_zctas_centroids.mbtiles')
 
     def handle(self, *args, **options):
@@ -59,19 +59,35 @@ class Command(BaseCommand):
             'bool_metro',
             'geometry'
         ]]
-        zips_map_merged['zip'] = zips_map_merged['zip'].astype(int)
+        zips_map_merged['zip_lookup'] = zips_map_merged['zip'].astype(int)
 
         print('Exporting GeoJSON...')
         zips_map_merged.to_file(self.OUTGEOJSON, driver='GeoJSON')
 
         print('Exporting MBTiles...')
-        os.system('tippecanoe -o {} -Z 4 -z 13 {} --force --use-attribute-for-id=zip'.format(self.OUTMBTILES, self.OUTGEOJSON))
+        os.system('tippecanoe -o {} -Z 4 -z 13 {} --force --use-attribute-for-id=zip_lookup'.format(self.OUTMBTILES, self.OUTGEOJSON))
+
+        def parse_bounds(row):
+            return  ', '.join([
+                str(round(row['minx'], 3)),
+                str(round(row['miny'], 3)),
+                str(round(row['maxx'], 3)),
+                str(round(row['maxy'], 3)),
+            ])
 
         print('Exporting centroid GeoJSON...')
+
+        # Getting bounding boxes
+        bounding_boxes = zips_map_merged['geometry'].bounds
+        zips_map_merged = zips_map_merged.join(bounding_boxes)
+        zips_map_merged['bounds'] = zips_map_merged.apply(lambda x: parse_bounds(x), axis=1)
+
+        # Centroid calculation recommends using projected coordinates, then transform back to 4326
         zips_map_merged['geom_utm'] = zips_map_merged['geometry'].to_crs(26915)
         zips_map_merged['geometry'] = zips_map_merged['geom_utm'].centroid.to_crs(4326)
-        zips_map_merged.drop(columns=['geom_utm'], inplace=True)
+
+        zips_map_merged.drop(columns=['geom_utm', 'minx', 'miny', 'maxx', 'maxy'], inplace=True)
         zips_map_merged.to_file(self.CENTROID_OUTGEOJSON, driver='GeoJSON')
 
         print('Exporting centroid MBTiles...')
-        os.system('tippecanoe -o {} -Z 4 -z 13 {} --force --use-attribute-for-id=zip'.format(self.CENTROID_OUTMBTILES, self.CENTROID_OUTGEOJSON))
+        os.system('tippecanoe -o {} -Z 4 -z 13 {} --force --use-attribute-for-id=zip_lookup'.format(self.CENTROID_OUTMBTILES, self.CENTROID_OUTGEOJSON))

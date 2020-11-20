@@ -74,7 +74,7 @@ class Command(BaseCommand):
 
     def dump_tall_timeseries(self):
         print('Dumping tall county timeseries...')
-        fieldnames = ['date', 'county', 'daily_cases', 'cumulative_cases', 'cases_per_1k', 'daily_deaths', 'cumulative_deaths', 'cases_rolling',
+        fieldnames = ['date', 'county', 'daily_cases', 'daily_cases_per_1k', 'cumulative_cases', 'cases_per_1k', 'daily_deaths', 'cumulative_deaths', 'cases_rolling',
 'deaths_rolling', 'cases_weekly_chg', 'cases_weekly_per_1k', 'cases_weekly_pct_chg',]
         # 'pct_chg', 'pct_chg_7day',
         rows = []
@@ -136,6 +136,7 @@ class Command(BaseCommand):
                         'date': c['scrape_date'].strftime('%Y-%m-%d'),
                         'county': c['county__name'],
                         'daily_cases': c['daily_total_cases'],
+                        'daily_cases_per_1k': round(c['daily_total_cases'] / (county.pop_2019 / 1000), 1),
                         'cumulative_cases': c['cumulative_count'],
                         'cases_per_1k': round(c['cumulative_count'] / (county.pop_2019 / 1000), 1),
                         'daily_deaths': c['daily_deaths'],
@@ -161,6 +162,7 @@ class Command(BaseCommand):
                 'date': row['date'],
                 'county': row['county'],
                 'daily_cases': row['daily_cases'],
+                'daily_cases_per_1k': row['daily_cases_per_1k'],
                 'cases': row['cumulative_cases'],
                 'cases_per_1k': row['cases_per_1k'],
                 'daily_deaths': row['daily_deaths'],
