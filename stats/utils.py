@@ -83,7 +83,7 @@ def get_matching_s3_cached_html(bucket, prefix, s3):
     return keys
 
 
-def find_filename_date_matchs(matching_files, hour, slice='first'):
+def find_filename_date_matchs(matching_files, hour=None, slice='first'):
     ''' Get the first or last cached file from a given hour on this date. If hour is null, return the last record from that date'''
     if hour:
         file_regex = re.compile('(\d{4}-\d{2}-\d{2})_' + str(hour) + '\d{2}.html')

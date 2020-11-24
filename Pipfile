@@ -32,6 +32,7 @@ xlrd = "*"
 topojson = "==1.0rc10"
 simplification = "*"
 altair = "*"
+selenium = "*"
 
 [requires]
 python_version = "3.8"

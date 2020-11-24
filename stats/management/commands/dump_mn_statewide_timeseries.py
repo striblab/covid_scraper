@@ -41,6 +41,7 @@ class Command(BaseCommand):
             latest_record = StatewideHospitalizationsDate.objects.filter(reported_date=t).values().latest('scrape_date')
             hosp_timeseries_values[t] = latest_record
 
+        # this is a weird one -- we want the totals as they were reported at the time, not the updated totals. Only needed for the cumulative totals
         hosp_totals_values = {}
         hosp_scrape_dates =  StatewideHospitalizationsDate.objects.all().values_list('scrape_date', flat=True).distinct()
         for t in hosp_scrape_dates:
