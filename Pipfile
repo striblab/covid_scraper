@@ -32,7 +32,7 @@ xlrd = "*"
 topojson = "==1.0rc10"
 simplification = "*"
 altair = "*"
-selenium = "*"
+awscli = "*"
 
 [requires]
 python_version = "3.8"

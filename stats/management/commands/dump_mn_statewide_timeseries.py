@@ -104,7 +104,8 @@ class Command(BaseCommand):
                 #     new_deaths = topline_data['cumulative_statewide_deaths'] - previous_total_deaths
                 # else:
                 #     print('yes deaths')
-                if topline_data['cumulative_statewide_deaths'] > 0:
+                if current_date in deaths_timeseries_values:
+                # if topline_data['cumulative_statewide_deaths'] > 0:
                     death_data = deaths_timeseries_values[current_date]
                     new_deaths = death_data['new_deaths']
                     new_deaths_rolling = round(death_data['new_deaths_rolling'], 1)

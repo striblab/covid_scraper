@@ -26,7 +26,7 @@ class Death(models.Model):
     age_group = models.CharField(max_length=100)
     actual_age = models.IntegerField(null=True)
     county = models.ForeignKey(County, null=True, on_delete=models.CASCADE)
-    bool_ltc = models.NullBooleanField()
+    bool_ltc = models.BooleanField(null=True)
 
     # scrape_date = models.DateField()
     last_update = models.DateTimeField(auto_now=True)
@@ -114,9 +114,6 @@ class StatewideTestsDate(models.Model):
 
 class StatewideTotalDate(models.Model):
     '''used for topline numbers'''
-    cases_daily_change = models.IntegerField(default=0, null=True)  # Difference between total yesterday and today
-    cases_newly_reported  = models.IntegerField(default=0, null=True)  # "new" cases per MDH, should add up to daily change when combined with cases_removed
-
     cases_daily_change = models.IntegerField(default=0, null=True)  # Difference between total yesterday and today
     cases_newly_reported  = models.IntegerField(default=0, null=True)  # "new" cases per MDH, should add up to daily change when combined with cases_removed
 
