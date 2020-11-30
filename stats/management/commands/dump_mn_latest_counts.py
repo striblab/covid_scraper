@@ -194,37 +194,37 @@ class Command(BaseCommand):
             with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_ages_latest.json'), 'w') as jsonfile:
                 jsonfile.write(json.dumps(rows))
 
-    def dump_detailed_death_ages_latest(self):
-        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_death_ages_detailed_latest.csv'), 'w') as csvfile:
-
-            fieldnames = [
-                'age_group',
-                'num_deaths',
-                'pct_of_deaths',
-            ]
-
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-
-            total_deaths = Death.objects.all().count()
-            age_group_totals = Death.objects.all().values('age_group').annotate(total=Count('pk')).order_by('age_group')
-            # print(age_group_totals)
-
-            for ag in age_group_totals:
-                ag['age_start_int'] = int(re.match(r'([0-9]+)', ag['age_group']).group(0))
-
-            rows = []
-            for ag in sorted(age_group_totals, key = lambda i: i['age_start_int']):
-                # print(ag['age_start_int'])
-                rows.append({
-                    'age_group': ag['age_group'],
-                    'num_deaths': ag['total'],
-                    'pct_of_deaths': self.round_special(100 * (ag['total'] / total_deaths)),
-                })
-            writer.writerows(rows)
-
-            with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_death_ages_detailed_latest.json'), 'w') as jsonfile:
-                jsonfile.write(json.dumps(rows))
+    # def dump_detailed_death_ages_latest(self):
+    #     with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_covid_data', 'mn_death_ages_detailed_latest.csv'), 'w') as csvfile:
+    #
+    #         fieldnames = [
+    #             'age_group',
+    #             'num_deaths',
+    #             'pct_of_deaths',
+    #         ]
+    #
+    #         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    #         writer.writeheader()
+    #
+    #         total_deaths = Death.objects.all().count()
+    #         age_group_totals = Death.objects.all().values('age_group').annotate(total=Count('pk')).order_by('age_group')
+    #         # print(age_group_totals)
+    #
+    #         for ag in age_group_totals:
+    #             ag['age_start_int'] = int(re.match(r'([0-9]+)', ag['age_group']).group(0))
+    #
+    #         rows = []
+    #         for ag in sorted(age_group_totals, key = lambda i: i['age_start_int']):
+    #             # print(ag['age_start_int'])
+    #             rows.append({
+    #                 'age_group': ag['age_group'],
+    #                 'num_deaths': ag['total'],
+    #                 'pct_of_deaths': self.round_special(100 * (ag['total'] / total_deaths)),
+    #             })
+    #         writer.writerows(rows)
+    #
+    #         with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_death_ages_detailed_latest.json'), 'w') as jsonfile:
+    #             jsonfile.write(json.dumps(rows))
 
     def handle(self, *args, **options):
         self.dump_county_latest()

@@ -20,43 +20,39 @@ ENV DOCKYARD_SRVHOME=/srv
 ENV DOCKYARD_SRVPROJ=$DOCKYARD_SRVHOME/$DOCKYARD_SRC
 
 # Update the default application repository sources list
-RUN apt-get update && apt-get -y upgrade
-RUN apt-get install -y git
-
-# Create application subdirectories
-WORKDIR $DOCKYARD_SRVHOME
-RUN mkdir media static logs exports exports/mn_covid_data
-
-
-#read
-VOLUME ["$DOCKYARD_SRVHOME/media/", "$DOCKYARD_SRVHOME/logs/"]
+RUN apt-get update && apt-get -y upgrade && apt-get install -y git
 
 # Copy application source code to SRCDIR
 COPY $DOCKYARD_SRC $DOCKYARD_SRVPROJ
 
+# Create application subdirectories
+WORKDIR $DOCKYARD_SRVHOME
+RUN mkdir media static logs covid_scraper/exports/html covid_scraper/exports/dashboard
+
+#read
+VOLUME ["$DOCKYARD_SRVHOME/media/", "$DOCKYARD_SRVHOME/logs/"]
+
 # Install Python dependencies
-RUN pip install --ignore-installed pyOpenSSL --upgrade
-RUN pip install pipenv
-RUN pipenv lock --requirements > $DOCKYARD_SRVPROJ/requirements.txt
-RUN pip install -r $DOCKYARD_SRVPROJ/requirements.txt
-RUN pip install ndg-httpsclient
-RUN pip install awscli
+RUN pip install --ignore-installed pyOpenSSL --upgrade && \
+  pip install pipenv && \
+  pipenv lock --requirements > $DOCKYARD_SRVPROJ/requirements.txt && \
+  pip install -r $DOCKYARD_SRVPROJ/requirements.txt && \
+  pip install ndg-httpsclient && \
+  pip install awscli
 
 # Set up for github execution
 # sudo chmod a+x /usr/local/bin/my_gitpython_ssh
-RUN git config --global user.email "michael.corey@startribune.com"
-RUN git config --global user.name "Scraper Bot"
-RUN chmod 600 keys/.docker_deploy_rsa
+RUN git config --global user.email "michael.corey@startribune.com" && \
+  git config --global user.name "Scraper Bot" && \
+  chmod 600 keys/.docker_deploy_rsa
 
 # Authorize Github as SSH Host
 RUN mkdir -p /root/.ssh && \
     chmod 0700 /root/.ssh && \
     ssh-keyscan github.com > /root/.ssh/known_hosts
 
-
 # Copy entrypoint script into the image
 WORKDIR $DOCKYARD_SRVPROJ
 COPY ./docker-entrypoint-scrape.sh /
 RUN chmod +x /docker-entrypoint-scrape.sh
-RUN echo "I am built."
 ENTRYPOINT ["/docker-entrypoint-scrape.sh"]

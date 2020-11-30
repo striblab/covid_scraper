@@ -4,7 +4,7 @@ COUNTY_TESTS_FILENAME=mn_positive_tests_by_county
 COUNTY_LATEST_FILENAME=mn_counties_latest
 STATEWIDE_LATEST_FILENAME=mn_statewide_latest
 AGES_LATEST_FILENAME=mn_ages_latest
-DEATH_AGES_LATEST_FILENAME=mn_death_ages_detailed_latest
+# DEATH_AGES_LATEST_FILENAME=mn_death_ages_detailed_latest
 STATEWIDE_TIMESERIES_FILENAME=mn_statewide_timeseries
 # COUNTY_TIMESERIES_FILENAME=mn_county_timeseries
 COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
@@ -88,17 +88,17 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$DEATH_AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/$DEATH_AGES_LATEST_FILENAME.csv \
-  --content-type=text/csv \
-  --acl public-read
-
-  aws s3 cp $EXPORTS_ROOT/$DEATH_AGES_LATEST_FILENAME.json s3://$S3_URL/json/$DEATH_AGES_LATEST_FILENAME.json \
-  --content-type=application/json \
-  --acl public-read
-
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$DEATH_AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$DEATH_AGES_LATEST_FILENAME-$download_datetime.csv \
-  --content-type=text/csv \
-  --acl public-read
+  # aws s3 cp $EXPORTS_ROOT/mn_covid_data/$DEATH_AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/$DEATH_AGES_LATEST_FILENAME.csv \
+  # --content-type=text/csv \
+  # --acl public-read
+  #
+  # aws s3 cp $EXPORTS_ROOT/$DEATH_AGES_LATEST_FILENAME.json s3://$S3_URL/json/$DEATH_AGES_LATEST_FILENAME.json \
+  # --content-type=application/json \
+  # --acl public-read
+  #
+  # aws s3 cp $EXPORTS_ROOT/mn_covid_data/$DEATH_AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$DEATH_AGES_LATEST_FILENAME-$download_datetime.csv \
+  # --content-type=text/csv \
+  # --acl public-read
 
 else
   echo "***** WARNING WARNING WARNING: The newest file is very short. Taking no further action. *****"
@@ -205,7 +205,7 @@ echo Updating NYT national numbers...
 python manage.py join_us_county_data
 
 # Only dump if csvs have many lines or were produced in last few minutes
-LINE_COUNT=($(wc -l $EXPORTS_ROOT/$NATIONAL_TIMESERIES_FILENAME.csv))
+LINE_COUNT=($(wc -l $EXPORTS_ROOT/$NATIONAL_LATEST_FILENAME.csv))
 if (("${LINE_COUNT[0]}" > 2)); then
   echo "***** Uploading latest national count CSVs to S3. *****"
   download_datetime=$(date '+%Y%m%d%H%M%S');

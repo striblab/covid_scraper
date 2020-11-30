@@ -104,44 +104,44 @@ class Command(BaseCommand):
                     slack_latest('SCRAPER ERROR: {}'.format(e), '#robot-dojo')
                     raise
 
-            # Slack lastest results
-            case_change_text = ''
-            if county_observation.daily_total_cases != 0:
-                optional_plus = '+'
-                if county_observation.daily_total_cases < 0:
-                    optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE *** '
-                elif county_observation.daily_total_cases == county_observation.cumulative_count:
-                    optional_plus = ':heavy_plus_sign: NEW COUNTY '
+            # # Slack lastest results
+            # case_change_text = ''
+            # if county_observation.daily_total_cases != 0:
+            #     optional_plus = '+'
+            #     if county_observation.daily_total_cases < 0:
+            #         optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE *** '
+            #     elif county_observation.daily_total_cases == county_observation.cumulative_count:
+            #         optional_plus = ':heavy_plus_sign: NEW COUNTY '
+            #
+            #     case_change_text = ' (:point_right: {}{} today)'.format(optional_plus, county_observation.daily_total_cases)
+            #
+            # deaths_change_text = ''
+            # if int(county_observation.cumulative_deaths) > 0:
+            #     deaths_change_text = ', {} death'.format(county_observation.cumulative_deaths)
+            #     if int(county_observation.cumulative_deaths) > 1:
+            #         deaths_change_text += 's' # pluralize
+            #
+            #     if county_observation.daily_deaths != 0:
+            #         optional_plus = '+'
+            #         if county_observation.daily_deaths < 0:
+            #             optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE '
+            #         elif county_observation.daily_deaths == county_observation.cumulative_deaths:
+            #             optional_plus = ':heavy_plus_sign: NEW COUNTY '
+            #
+            #         deaths_change_text += ' (:point_right: {}{} today)'.format(optional_plus, county_observation.daily_deaths)
+            #
+            # # print('{}: {}{}\n'.format(county_observation.county.name, county_observation.cumulative_count, case_change_text))
+            # msg_output = msg_output + '{}: {} cases{}{}\n'.format(
+            #     county_observation.county.name,
+            #     f'{county_observation.cumulative_count:,}',
+            #     case_change_text,
+            #     deaths_change_text
+            # )
 
-                case_change_text = ' (:point_right: {}{} today)'.format(optional_plus, county_observation.daily_total_cases)
+        # final_msg = 'COVID scraper county-by-county results: \n\n' + msg_output
+        # print(final_msg)
 
-            deaths_change_text = ''
-            if int(county_observation.cumulative_deaths) > 0:
-                deaths_change_text = ', {} death'.format(county_observation.cumulative_deaths)
-                if int(county_observation.cumulative_deaths) > 1:
-                    deaths_change_text += 's' # pluralize
-
-                if county_observation.daily_deaths != 0:
-                    optional_plus = '+'
-                    if county_observation.daily_deaths < 0:
-                        optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE '
-                    elif county_observation.daily_deaths == county_observation.cumulative_deaths:
-                        optional_plus = ':heavy_plus_sign: NEW COUNTY '
-
-                    deaths_change_text += ' (:point_right: {}{} today)'.format(optional_plus, county_observation.daily_deaths)
-
-            # print('{}: {}{}\n'.format(county_observation.county.name, county_observation.cumulative_count, case_change_text))
-            msg_output = msg_output + '{}: {} cases{}{}\n'.format(
-                county_observation.county.name,
-                f'{county_observation.cumulative_count:,}',
-                case_change_text,
-                deaths_change_text
-            )
-
-        final_msg = 'COVID scraper county-by-county results: \n\n' + msg_output
-        print(final_msg)
-
-        return final_msg
+        return msg_output
 
     def ul_regex(self, preceding_text, input_str):
         match = re.search(r'{}: ([\d,]+)'.format(preceding_text), input_str)
@@ -741,7 +741,6 @@ class Command(BaseCommand):
                 scrape_date=today
             )
             print('Updating existing statewide for {}'.format(today))
-            print(statewide_data['removed_cases'])
 
             current_statewide_observation.cumulative_positive_tests = statewide_data['cumulative_positive_tests']
             current_statewide_observation.cases_daily_change = cases_daily_change
