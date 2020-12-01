@@ -1,14 +1,12 @@
 import os
 import csv
-import json
 import datetime
 import pandas as pd
 from datetime import timedelta
 
 from django.conf import settings
-from django.db.models import Min, Max, Avg, F, RowRange, Window
+from django.db.models import Min, Max
 from django.core.management.base import BaseCommand
-# from django.db.models import Avg, F, RowRange, Window
 from stats.models import StatewideTotalDate, StatewideCasesBySampleDate, StatewideTestsDate, StatewideDeathsDate, StatewideHospitalizationsDate
 
 
