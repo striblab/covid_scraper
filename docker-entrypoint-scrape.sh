@@ -14,7 +14,7 @@ NATIONAL_LATEST_FILENAME=national_cases_deaths_by_county_latest
 # MIDWEST_EMERGING_COUNTIES_WIDE_PATH=midwest_emerging_counties_wide
 US_LATEST_EXPORT_PATH_NYT=us_latest_nyt
 US_LATEST_EXPORT_PATH_CTP=us_latest_ctp
-STATES_LATEST_EXPORT_PATH=states_latest_ctp
+# STATES_LATEST_EXPORT_PATH=states_latest_ctp
 GLOBAL_LATEST_EXPORT_PATH=global_latest_ghu
 
 TZ=America/Chicago date
@@ -189,10 +189,10 @@ aws s3 cp $EXPORTS_ROOT/$US_LATEST_EXPORT_PATH_CTP.csv s3://$S3_URL/csv/$US_LATE
 --content-type=text/csv \
 --acl public-read
 
-python manage.py get_ctp_states
-aws s3 cp $EXPORTS_ROOT/$STATES_LATEST_EXPORT_PATH.json s3://$S3_URL/json/$STATES_LATEST_EXPORT_PATH.json \
---content-type=application/json \
---acl public-read
+# python manage.py get_ctp_states
+# aws s3 cp $EXPORTS_ROOT/$STATES_LATEST_EXPORT_PATH.json s3://$S3_URL/json/$STATES_LATEST_EXPORT_PATH.json \
+# --content-type=application/json \
+# --acl public-read
 
 # Global death toll and cases
 python manage.py get_jhu_global

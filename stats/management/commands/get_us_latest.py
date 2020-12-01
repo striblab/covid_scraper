@@ -34,8 +34,6 @@ class Command(BaseCommand):
 
             last_update = utc.localize(datetime.strptime(raw_json['lastModified'], '%Y-%m-%dT%H:%M:%S%fZ')).astimezone(central).strftime('%Y-%m-%d %H:%M')
 
-            # print(datetime.fromtimestamp(raw_json['lastModified'], '%Y-%m-%dT%H:%M:%S%fZ'))
-
             out_dict = {
                 'death_total': f'{death_total:,}',
                 'last_update': last_update
@@ -73,10 +71,6 @@ class Command(BaseCommand):
                     writer.writerow(out_dict)
 
                 return True
-
-                # with open(export_path, 'w') as jsonfile:
-                #     jsonfile.write(json.dumps(out_dict))
-                #     return True
         return False
 
     def handle(self, *args, **options):

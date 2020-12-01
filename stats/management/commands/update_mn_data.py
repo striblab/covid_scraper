@@ -78,14 +78,12 @@ class Command(BaseCommand):
             data[label] = row.find("td").text.strip()
         return data
 
-    def full_table_parser(self, table):
+    def timeseries_table_parser(self, table):
         ''' should work on multiple columns '''
-        # table = soup.find("th", text=find_str).find_parent("table")
         rows = table.find_all("tr")
         num_rows = len(rows)
         data_rows = []
         for k, row in enumerate(rows):
-            # print(row)
             if k == 0:
                 first_row = row.find_all("th")
                 col_names = [' '.join(th.text.split()).replace('<br>', ' ') for th in first_row]
@@ -94,7 +92,6 @@ class Command(BaseCommand):
                 cells = row.find_all(["th", "td"])
                 if len(cells) > 0:  # Filter out bad TRs
                     for k, c in enumerate(col_names):
-                        # print(cells[k].text)
 
                         data_row[c] = cells[k].text
                     data_rows.append(data_row)
@@ -113,7 +110,7 @@ class Command(BaseCommand):
     def get_county_data(self, soup):
         county_data = []
         county_table = soup.find("table", {'id': 'maptable'})
-        county_list = self.full_table_parser(county_table)
+        county_list = self.timeseries_table_parser(county_table)
 
         for county in county_list:
             county_name = ' '.join(county['County'].split()).replace(' County', '')
@@ -226,7 +223,7 @@ class Command(BaseCommand):
         print('Parsing statewide cases timeseries...')
 
         cases_table = soup.find("table", {'id': 'casetable'})
-        cases_timeseries = self.full_table_parser(cases_table)
+        cases_timeseries = self.timeseries_table_parser(cases_table)
         # print(cases_timeseries)
         if len(cases_timeseries) > 0:
             today = datetime.date.today()
@@ -269,7 +266,7 @@ class Command(BaseCommand):
         print('Parsing statewide tests timeseries...')
 
         tests_table = soup.find("table", {'id': 'labtable'})
-        tests_timeseries = self.full_table_parser(tests_table)
+        tests_timeseries = self.timeseries_table_parser(tests_table)
 
         if len(tests_timeseries) > 0:
             today = datetime.date.today()
@@ -327,7 +324,7 @@ class Command(BaseCommand):
         print('Parsing statewide hospitalizations timeseries...')
 
         hosp_table = table = soup.find("table", {'id': 'hosptable'})
-        hosp_timeseries = self.full_table_parser(hosp_table)
+        hosp_timeseries = self.timeseries_table_parser(hosp_table)
 
         if len(hosp_timeseries) > 0:
             today = datetime.date.today()
@@ -378,7 +375,7 @@ class Command(BaseCommand):
         print('Parsing statewide deaths timeseries...')
 
         deaths_table = table = soup.find("table", {'id': 'deathtable'})
-        deaths_timeseries = self.full_table_parser(deaths_table)
+        deaths_timeseries = self.timeseries_table_parser(deaths_table)
         # print(deaths_timeseries)
 
         if len(deaths_timeseries) > 0:
@@ -553,7 +550,7 @@ class Command(BaseCommand):
     def get_recent_deaths_data(self, soup):
         today = datetime.date.today()
         recent_deaths_table = table = soup.find("table", {'id': 'dailydeathar'})
-        recent_deaths_ages = self.full_table_parser(recent_deaths_table)
+        recent_deaths_ages = self.timeseries_table_parser(recent_deaths_table)
 
         cleaned_data = []
 
@@ -635,7 +632,7 @@ class Command(BaseCommand):
 
     def get_age_data(self, soup):
         age_table = soup.find("table", {'id': 'agetable'})
-        ages_data = self.full_table_parser(age_table)
+        ages_data = self.timeseries_table_parser(age_table)
 
         cleaned_ages_data = []
         for d in ages_data:
