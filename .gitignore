@@ -133,3 +133,4 @@ covid_scraper/data
 covid_scraper/settings/local_settings.py
 keys
 covid_scraper/exports
+covid_scraper/imports
