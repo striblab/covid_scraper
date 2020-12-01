@@ -143,10 +143,13 @@ class StatewideTotalDate(models.Model):
     cumulative_antigen_tests = models.IntegerField(default=0, null=True)
 
     cumulative_hospitalized = models.IntegerField(default=0, null=True)
+    cumulative_icu = models.IntegerField(default=0, null=True)
+
     currently_hospitalized = models.IntegerField(default=0, null=True)  # Deprecated as of 9/4/2020, but have old data
     currently_in_icu = models.IntegerField(default=0, null=True)  # Deprecated as of 9/4/2020, but have old data
 
     hospitalized_total_daily_change = models.IntegerField(default=0, null=True)
+    icu_total_daily_change = models.IntegerField(default=0, null=True)
 
     cumulative_statewide_deaths = models.IntegerField(default=0, null=True)  # Captured separately from county totals, so they may not match
     cumulative_statewide_recoveries = models.IntegerField(default=0, null=True)

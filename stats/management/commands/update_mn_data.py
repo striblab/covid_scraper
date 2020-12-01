@@ -5,15 +5,14 @@ import requests
 import datetime
 from datetime import timedelta
 from bs4 import BeautifulSoup
-from urllib.request import urlopen
 
-from django.db.models import Sum, Count, Max, Avg, F, RowRange, Window
+from django.db.models import Count
 from django.core.management.base import BaseCommand
 from django.core.exceptions import ObjectDoesNotExist
+from django.conf import settings
+
 from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death, StatewideCasesBySampleDate, StatewideTestsDate, StatewideDeathsDate, StatewideHospitalizationsDate
 from stats.utils import slack_latest
-
-from django.conf import settings
 
 
 class Command(BaseCommand):
@@ -29,8 +28,89 @@ class Command(BaseCommand):
         else:
             return False
 
-    def get_county_data(self, soup):
+    def ul_regex(self, preceding_text, input_str):
+        match = re.search(r'{}: ([\d,]+)'.format(preceding_text), input_str)
+        if match:
+            return int(match.group(1).replace(',', ''))
+        return False
 
+    def detail_tables_regex(self, table):
+        # table = soup.find("th", text=th_text).find_parent("table")
+        rows = table.find_all("tr")
+        num_rows = len(rows)
+        for k, row in enumerate(rows):
+            if k == 0:
+                first_row = row.find_all("th")
+            if k == num_rows - 1:
+                last_row = row.find_all(['th', 'td'])
+
+        col_names = [th.text for th in first_row]
+        last_row_values = {}
+        for k, c in enumerate(col_names):
+            last_row_values[c] = last_row[k].text
+        return last_row_values
+
+    def parse_comma_int(self, input_str):
+        if input_str == '-':
+            return None
+        else:
+            return int(input_str.replace(',', ''))
+
+    def parse_mdh_date(self, input_str, today):
+        return datetime.datetime.strptime('{}/{}'.format(input_str, today.year), '%m/%d/%Y')
+
+    def change_sign(self, input_int):
+        optional_plus = ''
+        if not input_int:
+            return '+:shrug:'
+        elif input_int != 0:
+            optional_plus = '+'
+            if input_int < 0:
+                optional_plus = ':rotating_light: '
+        return '{}{}'.format(optional_plus, f'{input_int:,}')
+
+    def totals_table_parser(self, table):
+        ''' First row is totals, others are breakouts '''
+        data = {}
+        rows = table.find_all("tr")
+        for k, row in enumerate(rows):
+            label = ' '.join(row.find("th").text.split())
+            data[label] = row.find("td").text.strip()
+        return data
+
+    def full_table_parser(self, table):
+        ''' should work on multiple columns '''
+        # table = soup.find("th", text=find_str).find_parent("table")
+        rows = table.find_all("tr")
+        num_rows = len(rows)
+        data_rows = []
+        for k, row in enumerate(rows):
+            # print(row)
+            if k == 0:
+                first_row = row.find_all("th")
+                col_names = [' '.join(th.text.split()).replace('<br>', ' ') for th in first_row]
+            else:
+                data_row = {}
+                cells = row.find_all(["th", "td"])
+                if len(cells) > 0:  # Filter out bad TRs
+                    for k, c in enumerate(col_names):
+                        # print(cells[k].text)
+
+                        data_row[c] = cells[k].text
+                    data_rows.append(data_row)
+
+        return data_rows
+
+    def pct_filter(self, input_str):
+        '''Removing pct sign, and changing <1 to -1'''
+        if input_str == '<1%':
+            return -1
+        try:
+            return int(input_str.replace('%', ''))
+        except:
+            return None
+
+    def get_county_data(self, soup):
         county_data = []
         county_table = soup.find("table", {'id': 'maptable'})
         county_list = self.full_table_parser(county_table)
@@ -64,8 +144,6 @@ class Command(BaseCommand):
 
             daily_cases = observation['cumulative_count'] - previous_county_cases_total
             daily_deaths = observation['cumulative_deaths'] - previous_county_deaths_total
-            # daily_cases = self.parse_comma_int(observation[1]) - previous_county_cases_total
-            # daily_deaths = self.parse_comma_int(observation[2]) - previous_county_deaths_total
 
             # Check if there is already an entry today
             try:
@@ -143,43 +221,6 @@ class Command(BaseCommand):
 
         return msg_output
 
-    def ul_regex(self, preceding_text, input_str):
-        match = re.search(r'{}: ([\d,]+)'.format(preceding_text), input_str)
-        if match:
-            return int(match.group(1).replace(',', ''))
-        return False
-
-    def detail_tables_regex(self, table):
-        # table = soup.find("th", text=th_text).find_parent("table")
-        rows = table.find_all("tr")
-        num_rows = len(rows)
-        for k, row in enumerate(rows):
-            if k == 0:
-                first_row = row.find_all("th")
-            if k == num_rows - 1:
-                last_row = row.find_all(['th', 'td'])
-
-        col_names = [th.text for th in first_row]
-        last_row_values = {}
-        for k, c in enumerate(col_names):
-            last_row_values[c] = last_row[k].text
-        return last_row_values
-
-    def p_regex(self, preceding_text, input_str):
-        match = re.search(r'{}: ([\d,]+)'.format(preceding_text), input_str)
-        if match:
-            return int(match.group(1).replace(',', ''))
-        return False
-
-    def parse_comma_int(self, input_str):
-        if input_str == '-':
-            return None
-        else:
-            return int(input_str.replace(',', ''))
-
-    def parse_mdh_date(self, input_str, today):
-        return datetime.datetime.strptime('{}/{}'.format(input_str, today.year), '%m/%d/%Y')
-
     def get_statewide_cases_timeseries(self, soup, update_date):
         '''How to deal with back-dated statewide totals if they use sample dates'''
         print('Parsing statewide cases timeseries...')
@@ -206,11 +247,6 @@ class Command(BaseCommand):
                     new_cases = int(new_pcr_tests) + int(new_antigen_tests)
                 else:
                     new_cases = new_pcr_tests
-
-                # if c['Total positive cases (cumulative)'] == '':
-                #     new_cases = '0'
-                # else:
-                #     new_cases = c['Total positive cases (cumulative)']
 
                 co = StatewideCasesBySampleDate(
                     sample_date=sample_date,
@@ -282,19 +318,6 @@ class Command(BaseCommand):
             print('Adding {} records of test timeseries data'.format(len(test_objs)))
             StatewideTestsDate.objects.bulk_create(test_objs)
 
-            # # calculate/add rolling average
-            # print('Calculating rolling averages ...')
-            # tests_added = StatewideTestsDate.objects.filter(scrape_date=today).annotate(
-            #     new_tests_rolling_temp=Window(
-            #         expression=Avg('new_tests'),
-            #         order_by=F('reported_date').asc(),
-            #         frame=RowRange(start=-6,end=0)
-            #     )
-            # )
-            # for t in tests_added:
-            #     t.new_tests_rolling = t.new_tests_rolling_temp
-            #     t.save()
-
         msg_output = '*{}* total tests completed (*{}* today)\n\n'.format(f'{total_tests:,}', self.change_sign(new_tests))
         print(msg_output)
 
@@ -305,8 +328,6 @@ class Command(BaseCommand):
 
         hosp_table = table = soup.find("table", {'id': 'hosptable'})
         hosp_timeseries = self.full_table_parser(hosp_table)
-        # print(hosp_timeseries)
-        # print(deaths_timeseries)
 
         if len(hosp_timeseries) > 0:
             today = datetime.date.today()
@@ -351,32 +372,7 @@ class Command(BaseCommand):
             print('Adding {} records of hospitalizations timeseries data'.format(len(hosp_objs)))
             StatewideHospitalizationsDate.objects.bulk_create(hosp_objs)
 
-          # calculate/add rolling average
-          # print('Calculating rolling averages ...')
-          # hosps_added = StatewideHospitalizationsDate.objects.filter(scrape_date=today).annotate(
-          #     new_non_icu_admissions_rolling_temp=Window(
-          #         expression=Avg('new_non_icu_admissions'),
-          #         order_by=F('reported_date').asc(),
-          #         frame=RowRange(start=-6,end=0)
-          #     ),
-          #     new_icu_admissions_rolling_rolling_temp=Window(
-          #         expression=Avg('new_icu_admissions'),
-          #         order_by=F('reported_date').asc(),
-          #         frame=RowRange(start=-6,end=0)
-          #     ),
-          # )
-          #
-          # for t in hosps_added:
-          #     t.new_non_icu_admissions_rolling = t.new_non_icu_admissions_rolling_temp
-          #     t.new_icu_admissions_rolling = t.new_icu_admissions_rolling_temp
-          #     t.save()
-
-        # Move this message to overall state data
-        # msg_output = '*{}* total hospitalizations (*{}* new admissions reported today)\n\n'.format(f'{total_hospitalizations:,}', self.change_sign(new_deaths))
-        # return msg_output
-
         return total_hospitalizations
-
 
     def get_statewide_deaths_timeseries(self, soup, update_date):
         print('Parsing statewide deaths timeseries...')
@@ -417,204 +413,148 @@ class Command(BaseCommand):
             print('Adding {} records of deaths timeseries data'.format(len(death_objs)))
             StatewideDeathsDate.objects.bulk_create(death_objs)
 
-            # calculate/add rolling average
-            # print('Calculating rolling averages ...')
-            # deaths_added = StatewideDeathsDate.objects.filter(scrape_date=today).annotate(
-            #     new_deaths_rolling_temp=Window(
-            #       expression=Avg('new_deaths'),
-            #       order_by=F('reported_date').asc(),
-            #       frame=RowRange(start=-6,end=0)
-            #     )
-            # )
-            # for t in deaths_added:
-            #     t.new_deaths_rolling = t.new_deaths_rolling_temp
-            #     t.save()
-
             msg_output = '*{}* total deaths (*{}* reported today)\n\n'.format(f'{total_deaths:,}', self.change_sign(new_deaths))
             print(msg_output)
 
             return msg_output
 
-
-    # TODO: Hospitalization timeseries table
-
     def get_statewide_data(self, soup):
         output = {}
 
-        hosp_table = soup.find("table", {'id': 'hosptable'})
-        hosp_table_latest = self.detail_tables_regex(hosp_table)
-        output['cumulative_hospitalized'] = self.parse_comma_int(hosp_table_latest['Total hospitalizations (cumulative)'])
-         # Not used except to add up
+        hosp_table = soup.find("table", {'id': 'hosptotal'})
+        # TODO: Unify with other totals to simplify timeseries output
+        hosp_table_latest = self.totals_table_parser(hosp_table)
+        output['cumulative_hospitalized'] = self.parse_comma_int(hosp_table_latest['Total cases hospitalized (cumulative)'])
+        output['cumulative_icu'] = self.parse_comma_int(hosp_table_latest['Total cases hospitalized in ICU (cumulative)'])
 
-        # '*{}* total hospitalizations (*{}* new admissions reported today)\n\n'.format(f'{total_hospitalizations:,}', self.change_sign(new_deaths))
-
-        # check for null hospitalizations
-
-        # if hosp_table_latest['Hospitalized in ICU (daily)'] == '-\xa0\xa0 ' or hosp_table_latest['Hospitalized in ICU (daily)'] == '-':
-        #     output['currently_in_icu'] = None
-        # else:
-        #     output['currently_in_icu'] = self.parse_comma_int(hosp_table_latest['Hospitalized in ICU (daily)'])
-
-        # if hosp_table_latest['Hospitalized, not in ICU (daily)'] == '-\xa0\xa0 ' or hosp_table_latest['Hospitalized, not in ICU (daily)'] == '-':
-        #     output['currently_non_icu_hospitalized'] = None
-        # else:
-        #     output['currently_non_icu_hospitalized'] = self.parse_comma_int(hosp_table_latest['Hospitalized, not in ICU (daily)'])
-        #
-        # if output['currently_in_icu'] == None or output['currently_non_icu_hospitalized'] == None:
-        #     output['currently_hospitalized'] = None
-        # else:
-        #     output['currently_hospitalized'] = output['currently_in_icu'] + output['currently_non_icu_hospitalized']
+        print(output['cumulative_hospitalized'], output['cumulative_icu'])
 
         cumulative_cases_table = soup.find("table", {'id': 'casetotal'})
-        cumulative_cases_latest = self.row_table_parser(cumulative_cases_table)
+        cumulative_cases_latest = self.totals_table_parser(cumulative_cases_table)
         output['cumulative_positive_tests'] = self.parse_comma_int(cumulative_cases_latest['Total positive cases (cumulative)'])
         output['cumulative_confirmed_cases'] = self.parse_comma_int(cumulative_cases_latest['Total confirmed cases (PCR positive) (cumulative)'])
         output['cumulative_probable_cases'] = self.parse_comma_int(cumulative_cases_latest['Total probable cases (Antigen positive) (cumulative)'])
 
         new_cases_table = soup.find("table", {'id': 'dailycasetotal'})
-        new_cases_latest = self.row_table_parser(new_cases_table)
-        print(new_cases_latest)
+        new_cases_latest = self.totals_table_parser(new_cases_table)
         output['cases_newly_reported'] = self.parse_comma_int(new_cases_latest['Newly reported cases'])
         output['confirmed_cases_newly_reported'] = self.parse_comma_int(new_cases_latest['Newly reported confirmed cases'])
         output['probable_cases_newly_reported'] = self.parse_comma_int(new_cases_latest['Newly reported probable cases'])
 
         cumulative_tests_table = soup.find("table", {'id': 'testtotal'})
-        cumulative_tests_latest = self.row_table_parser(cumulative_tests_table)
+        cumulative_tests_latest = self.totals_table_parser(cumulative_tests_table)
         output['total_statewide_tests'] = self.parse_comma_int(cumulative_tests_latest['Total approximate completed tests (cumulative)'])
         output['cumulative_pcr_tests'] = self.parse_comma_int(cumulative_tests_latest['Total approximate number of completed PCR tests (cumulative)'])
         output['cumulative_antigen_tests'] = self.parse_comma_int(cumulative_tests_latest['Total approximate number of completed antigen tests (cumulative)'])
 
         deaths_table = soup.find("table", {'id': 'deathtotal'})
-        deaths_table_latest = self.row_table_parser(deaths_table)
+        deaths_table_latest = self.totals_table_parser(deaths_table)
         output['cumulative_statewide_deaths'] = self.parse_comma_int(deaths_table_latest['Total deaths (cumulative)'])
         output['cumulative_confirmed_statewide_deaths'] = self.parse_comma_int(deaths_table_latest['Deaths from confirmed cases (cumulative)'])
         output['cumulative_probable_statewide_deaths'] = self.parse_comma_int(deaths_table_latest['Deaths from probable cases (cumulative)'])
 
         recoveries_table = soup.find("table", {'id': 'noisototal'})
-        recoveries_latest = self.row_table_parser(recoveries_table)
+        recoveries_latest = self.totals_table_parser(recoveries_table)
         output['cumulative_statewide_recoveries'] = self.parse_comma_int(recoveries_latest['Patients no longer needing isolation (cumulative)'])
-
-        # deaths_table = soup.find("table", {'id': 'deathtable'})
-        # deaths_table_latest = self.detail_tables_regex(deaths_table)
-        # output['cumulative_statewide_deaths'] = self.parse_comma_int(deaths_table_latest['Total deaths (cumulative)'])
-
-        # newly_reported_cases_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported cases')).find_parent('td').find('strong').text)
-        # # print(newly_reported_cases_match)
-        # if newly_reported_cases_match:
-        #     output['cases_newly_reported'] = newly_reported_cases_match
-
-        # new_deaths_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported deaths')).find_parent('td').find('strong').text)
-        # # print(new_deaths_match)
-        # if new_deaths_match:
-        #     output['new_deaths'] = new_deaths_match
-
-
-        # output['total_statewide_tests'] = self.parse_comma_int(soup.find('strong', text=re.compile('Total approximate number of completed tests')).find_parent('p').text.replace('Total approximate number of completed tests:\xa0', '').strip())
-        # newly_reported_cases_match = self.parse_comma_int(soup.find('span', text=re.compile('Newly reported cases')).find_parent('td').find('strong').text)
-        # print(int(tests_timeseries[len(tests_timeseries) - 1]['Total approximate number of completed tests '].replace(',', '')))
-
-        # mdh_tests = 0
-        # private_tests = 0
-        #
-        # tests_table = table = soup.find("table", {'id': 'labtable'})
-        # tests_timeseries = self.full_table_parser(tests_table)
-
-        # for c in tests_timeseries:
-        #     if c['Date reported to MDH'] == 'Unknown/missing':
-        #         continue
-        #     else:
-        #         if c['Completed PCR tests reported from the MDH Public Health Lab'] == '-\xa0\xa0 ':
-        #             continue
-        #         else:
-        #             mdh_tests = mdh_tests + self.parse_comma_int(c['Completed PCR tests reported from the MDH Public Health Lab'])
-        #         private_tests = private_tests + self.parse_comma_int(c['Completed PCR tests reported from external laboratories'])
-
-        # output['cumulative_completed_mdh'] = mdh_tests
-        # output['cumulative_completed_private'] = private_tests
 
         uls = soup.find_all('ul')
         for ul in uls:
-            # cumulative_positive_tests_match = self.ul_regex('Total positive cases', ul.text)
-            # if cumulative_positive_tests_match:
-            #     # print(cumulative_positive_tests_match)
-            #     output['cumulative_positive_tests'] = cumulative_positive_tests_match
 
             daily_cases_removed_match = self.ul_regex('Cases removed', ul.text)
             if daily_cases_removed_match is not False:
                 output['removed_cases'] = daily_cases_removed_match
-                # print('cases removed', daily_cases_removed_match)
-
-            # cumulative_completed_mdh_match = self.ul_regex('Total approximate number of completed tests from the MDH Public Health Lab', ul.text)
-            # if cumulative_completed_mdh_match:
-            #     output['cumulative_completed_mdh'] = cumulative_completed_mdh_match
-            #
-            # cumulative_completed_private_match = self.ul_regex('Total approximate number of completed tests from external laboratories', ul.text)
-            # if cumulative_completed_private_match:
-            #     output['cumulative_completed_private'] = cumulative_completed_private_match
-
-            # recoveries_match = self.ul_regex('Patients no longer needing isolation', ul.text)
-            # if recoveries_match:
-            #     output['cumulative_statewide_recoveries'] = recoveries_match
 
         return output
 
-    def change_sign(self, input_int):
-        optional_plus = ''
-        if not input_int:
-            return '+:shrug:'
-        elif input_int != 0:
-            optional_plus = '+'
-            if input_int < 0:
-                optional_plus = ':rotating_light: '
-        return '{}{}'.format(optional_plus, f'{input_int:,}')
+    def update_statewide_records(self, statewide_data, update_date):
+        yesterday = update_date - timedelta(days=1)
+        yesterday_results = StatewideTotalDate.objects.get(scrape_date=yesterday)
 
-    def row_table_parser(self, table):
-        ''' First row is totals, others are breakouts '''
-        data = {}
-        rows = table.find_all("tr")
-        for k, row in enumerate(rows):
-            label = ' '.join(row.find("th").text.split())
-            data[label] = row.find("td").text.strip()
-        return data
-
-    def full_table_parser(self, table):
-        ''' should work on multiple columns '''
-        # table = soup.find("th", text=find_str).find_parent("table")
-        rows = table.find_all("tr")
-        num_rows = len(rows)
-        data_rows = []
-        for k, row in enumerate(rows):
-            # print(row)
-            if k == 0:
-                first_row = row.find_all("th")
-                col_names = [' '.join(th.text.split()).replace('<br>', ' ') for th in first_row]
-            else:
-                data_row = {}
-                cells = row.find_all(["th", "td"])
-                if len(cells) > 0:  # Filter out bad TRs
-                    for k, c in enumerate(col_names):
-                        # print(cells[k].text)
-
-                        data_row[c] = cells[k].text
-                    data_rows.append(data_row)
-
-        return data_rows
-
-    def pct_filter(self, input_str):
-        '''Removing pct sign, and changing <1 to -1'''
-        if input_str == '<1%':
-            return -1
+        today = datetime.date.today()
+        total_statewide_tests = statewide_data['total_statewide_tests']
+        cases_daily_change = statewide_data['cumulative_positive_tests'] - yesterday_results.cumulative_positive_tests
+        deaths_daily_change = statewide_data['cumulative_statewide_deaths'] - yesterday_results.cumulative_statewide_deaths
+        hospitalized_total_daily_change = statewide_data['cumulative_hospitalized'] - yesterday_results.cumulative_hospitalized
+        icu_total_daily_change = statewide_data['cumulative_icu'] - yesterday_results.cumulative_icu
         try:
-            return int(input_str.replace('%', ''))
-        except:
-            return None
+            current_statewide_observation = StatewideTotalDate.objects.get(
+                scrape_date=today
+            )
+            print('Updating existing statewide for {}'.format(today))
+
+            current_statewide_observation.cumulative_positive_tests = statewide_data['cumulative_positive_tests']
+            current_statewide_observation.cases_daily_change = cases_daily_change
+            current_statewide_observation.cases_newly_reported = statewide_data['cases_newly_reported']
+            current_statewide_observation.removed_cases = statewide_data['removed_cases']
+            current_statewide_observation.deaths_daily_change = deaths_daily_change
+            current_statewide_observation.cumulative_completed_tests = total_statewide_tests
+            current_statewide_observation.cumulative_hospitalized = statewide_data['cumulative_hospitalized']
+            current_statewide_observation.hospitalized_total_daily_change = hospitalized_total_daily_change
+
+            current_statewide_observation.cumulative_icu = statewide_data['cumulative_icu']
+            current_statewide_observation.icu_total_daily_change = icu_total_daily_change
+
+            current_statewide_observation.cumulative_statewide_deaths = statewide_data['cumulative_statewide_deaths']
+            current_statewide_observation.cumulative_statewide_recoveries = statewide_data['cumulative_statewide_recoveries']
+            current_statewide_observation.update_date=update_date
+
+            current_statewide_observation.save()
+        except ObjectDoesNotExist:
+            try:
+                print('Creating 1st statewide record for {}'.format(today))
+                current_statewide_observation = StatewideTotalDate(
+                    cumulative_positive_tests=statewide_data['cumulative_positive_tests'],
+                    cases_daily_change=cases_daily_change,
+                    cases_newly_reported=statewide_data['cases_newly_reported'],
+                    removed_cases=statewide_data['removed_cases'],
+                    deaths_daily_change=deaths_daily_change,
+                    cumulative_completed_tests=total_statewide_tests,
+                    cumulative_hospitalized=statewide_data['cumulative_hospitalized'],
+                    hospitalized_total_daily_change=hospitalized_total_daily_change,
+
+                    cumulative_icu = statewide_data['cumulative_icu'],
+                    icu_total_daily_change = icu_total_daily_change,
+
+                    cumulative_statewide_deaths=statewide_data['cumulative_statewide_deaths'],
+                    cumulative_statewide_recoveries=statewide_data['cumulative_statewide_recoveries'],
+                    confirmed_cases_newly_reported=statewide_data['confirmed_cases_newly_reported'],
+                    probable_cases_newly_reported=statewide_data['probable_cases_newly_reported'],
+                    cumulative_confirmed_cases=statewide_data['cumulative_confirmed_cases'],
+                    cumulative_probable_cases=statewide_data['cumulative_probable_cases'],
+                    cumulative_pcr_tests=statewide_data['cumulative_pcr_tests'],
+                    cumulative_antigen_tests=statewide_data['cumulative_antigen_tests'],
+                    cumulative_confirmed_statewide_deaths=statewide_data['cumulative_confirmed_statewide_deaths'],
+                    cumulative_probable_statewide_deaths=statewide_data['cumulative_probable_statewide_deaths'],
+                    update_date=update_date,
+                    scrape_date=today,
+                )
+                current_statewide_observation.save()
+            except Exception as e:
+                slack_latest('SCRAPER ERROR: {}'.format(e), '#robot-dojo')
+                raise
+
+        msg_output = ''
+
+        new_tests = current_statewide_observation.cumulative_completed_tests - yesterday_results.cumulative_completed_tests
+
+        print('Change found, composing statewide Slack message...')
+
+        msg_output += '*{}* cases total (change of *{}* today, *{}* newly reported, *{}* removed)\n'.format(f'{current_statewide_observation.cumulative_positive_tests:,}', self.change_sign(cases_daily_change), f'{current_statewide_observation.cases_newly_reported:,}', f'{current_statewide_observation.removed_cases:,}')
+
+        msg_output += '*{}* total hospitalizations (*{}* new admissions reported today)\n\n'.format(f'{statewide_data["cumulative_hospitalized"]:,}', self.change_sign(hospitalized_total_daily_change))
+        msg_output += '*{}* total icu (*{}* icu admissions reported today)\n\n'.format(f'{statewide_data["cumulative_icu"]:,}', self.change_sign(icu_total_daily_change))
+
+        final_msg = 'COVID scraper found updated data on the <https://www.health.state.mn.us/diseases/coronavirus/situation.html|MDH situation page>...\n\n' + msg_output
+        print(final_msg)
+
+        return final_msg
+
 
     def get_recent_deaths_data(self, soup):
         today = datetime.date.today()
         recent_deaths_table = table = soup.find("table", {'id': 'dailydeathar'})
         recent_deaths_ages = self.full_table_parser(recent_deaths_table)
 
-        # print(recent_deaths_ages)
         cleaned_data = []
 
         for group in recent_deaths_ages:
@@ -643,7 +583,6 @@ class Command(BaseCommand):
         date_stripped_existing = [{i:d[i] for i in d if i != 'scrape_date'} for d in existing_deaths]
 
         bool_changes = [i for i in date_stripped_scraped if i not in date_stripped_existing] != []
-        # print(bool_changes)
 
         if bool_changes:
 
@@ -668,7 +607,6 @@ class Command(BaseCommand):
                         sd['scrape_date'] = similar[0]['scrape_date']  # If you're going to remove, make sure it's from the max_date, not necessarily today
                         deaths_to_remove.append(sd)
 
-            # print(deaths_to_add, deaths_to_remove)
             # Removing records
             for group in deaths_to_remove:
                 remove_count = group['count']
@@ -725,116 +663,6 @@ class Command(BaseCommand):
             current_observation.death_count = a['Number of Deaths']
             current_observation.save()
 
-
-    def update_statewide_records(self, statewide_data, update_date):
-        yesterday = update_date - timedelta(days=1)
-        yesterday_results = StatewideTotalDate.objects.get(scrape_date=yesterday)
-        # previous_statewide_results = StatewideTotalDate.objects.all().order_by('-scrape_date').first()
-
-        today = datetime.date.today()
-        total_statewide_tests = statewide_data['total_statewide_tests']
-        cases_daily_change = statewide_data['cumulative_positive_tests'] - yesterday_results.cumulative_positive_tests
-        deaths_daily_change = statewide_data['cumulative_statewide_deaths'] - yesterday_results.cumulative_statewide_deaths
-        hospitalized_total_daily_change = statewide_data['cumulative_hospitalized'] - yesterday_results.cumulative_hospitalized
-        try:
-            current_statewide_observation = StatewideTotalDate.objects.get(
-                scrape_date=today
-            )
-            print('Updating existing statewide for {}'.format(today))
-
-            current_statewide_observation.cumulative_positive_tests = statewide_data['cumulative_positive_tests']
-            current_statewide_observation.cases_daily_change = cases_daily_change
-            current_statewide_observation.cases_newly_reported = statewide_data['cases_newly_reported']
-            current_statewide_observation.removed_cases = statewide_data['removed_cases']
-
-            current_statewide_observation.deaths_daily_change = deaths_daily_change
-
-            current_statewide_observation.cumulative_completed_tests = total_statewide_tests
-            # current_statewide_observation.cumulative_completed_mdh = statewide_data['cumulative_completed_mdh']
-            # current_statewide_observation.cumulative_completed_private = statewide_data['cumulative_completed_private']
-            current_statewide_observation.cumulative_hospitalized = statewide_data['cumulative_hospitalized']
-            # current_statewide_observation.currently_hospitalized = statewide_data['currently_hospitalized']
-            # current_statewide_observation.currently_in_icu = statewide_data['currently_in_icu']
-
-            current_statewide_observation.hospitalized_total_daily_change = hospitalized_total_daily_change
-
-            current_statewide_observation.cumulative_statewide_deaths = statewide_data['cumulative_statewide_deaths']
-            current_statewide_observation.cumulative_statewide_recoveries = statewide_data['cumulative_statewide_recoveries']
-
-            current_statewide_observation.update_date=update_date
-
-            current_statewide_observation.save()
-        except ObjectDoesNotExist:
-            try:
-                print('Creating 1st statewide record for {}'.format(today))
-                current_statewide_observation = StatewideTotalDate(
-                    cumulative_positive_tests=statewide_data['cumulative_positive_tests'],
-                    cases_daily_change=cases_daily_change,
-                    cases_newly_reported=statewide_data['cases_newly_reported'],
-                    removed_cases=statewide_data['removed_cases'],
-                    # new_cases=statewide_data['new_cases'],
-                    deaths_daily_change=deaths_daily_change,
-                    # cumulative_positive_tests=statewide_data['cumulative_positive_tests'],
-                    cumulative_completed_tests=total_statewide_tests,
-                    # cumulative_completed_mdh=statewide_data['cumulative_completed_mdh'],
-                    # cumulative_completed_private=statewide_data['cumulative_completed_private'],
-                    cumulative_hospitalized=statewide_data['cumulative_hospitalized'],
-                    # currently_hospitalized=statewide_data['currently_hospitalized'],
-                    # currently_in_icu=statewide_data['currently_in_icu'],
-                    hospitalized_total_daily_change=hospitalized_total_daily_change,
-                    cumulative_statewide_deaths=statewide_data['cumulative_statewide_deaths'],
-                    cumulative_statewide_recoveries=statewide_data['cumulative_statewide_recoveries'],
-
-                    # oct 14 add
-                    confirmed_cases_newly_reported=statewide_data['confirmed_cases_newly_reported'],
-                    probable_cases_newly_reported=statewide_data['probable_cases_newly_reported'],
-                    cumulative_confirmed_cases=statewide_data['cumulative_confirmed_cases'],
-                    cumulative_probable_cases=statewide_data['cumulative_probable_cases'],
-                    cumulative_pcr_tests=statewide_data['cumulative_pcr_tests'],
-                    cumulative_antigen_tests=statewide_data['cumulative_antigen_tests'],
-                    cumulative_confirmed_statewide_deaths=statewide_data['cumulative_confirmed_statewide_deaths'],
-                    cumulative_probable_statewide_deaths=statewide_data['cumulative_probable_statewide_deaths'],
-
-                    update_date=update_date,
-                    scrape_date=today,
-                )
-                current_statewide_observation.save()
-            except Exception as e:
-                slack_latest('SCRAPER ERROR: {}'.format(e), '#robot-dojo')
-                raise
-
-        msg_output = ''
-        # if (cases_daily_change != 0):
-        # new_deaths = current_statewide_observation.cumulative_statewide_deaths - previous_statewide_results.cumulative_statewide_deaths
-
-        # if yesterday_results.currently_hospitalized:
-        #     hospitalizations_change = current_statewide_observation.currently_hospitalized - yesterday_results.currently_hospitalized
-        # else:
-        #     hospitalizations_change = None
-        #
-        # if yesterday_results.currently_in_icu:
-        #     icu_change = current_statewide_observation.currently_in_icu - yesterday_results.currently_in_icu
-        # else:
-        #     icu_change = None
-
-        new_tests = current_statewide_observation.cumulative_completed_tests - yesterday_results.cumulative_completed_tests
-
-        print('Change found, composing statewide Slack message...')
-        # msg_output += '*{}* deaths total (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_statewide_deaths:,}', self.change_sign(deaths_daily_change))
-        msg_output += '*{}* cases total (change of *{}* today, *{}* newly reported, *{}* removed)\n'.format(f'{current_statewide_observation.cumulative_positive_tests:,}', self.change_sign(cases_daily_change), f'{current_statewide_observation.cases_newly_reported:,}', f'{current_statewide_observation.removed_cases:,}')
-
-        msg_output += '*{}* total hospitalizations (*{}* new admissions reported today)\n\n'.format(f'{statewide_data["cumulative_hospitalized"]:,}', self.change_sign(hospitalized_total_daily_change))
-        # msg_output += '*{}* currently hospitalized (*{}* today)\n'.format(f'{current_statewide_observation.currently_hospitalized:,}', self.change_sign(hospitalizations_change))
-        # msg_output += '*{}* currently in ICU (*{}* today)\n'.format(f'{current_statewide_observation.currently_in_icu:,}', self.change_sign(icu_change))
-
-        # TODO: Separate new tests in message
-        # msg_output += '*{}* total tests completed (*{}* today)\n'.format(f'{current_statewide_observation.cumulative_completed_tests:,}', self.change_sign(new_tests))
-
-        final_msg = 'COVID scraper found updated data on the <https://www.health.state.mn.us/diseases/coronavirus/situation.html|MDH situation page>...\n\n' + msg_output
-        print(final_msg)
-
-        return final_msg
-
     def updated_today(self, soup):
         update_date_node = soup.find("strong", text=re.compile('Updated [A-z]+ \d{1,2}, \d{4}')).text
 
@@ -849,12 +677,6 @@ class Command(BaseCommand):
         if not html:
             slack_latest('WARNING: Scraper error. Not proceeding.', '#robot-dojo')
         else:
-            # DEPRECATED -- HANDLED IN .SH FILE... Save a copy of HTML
-            # now = datetime.datetime.now().strftime('%Y-%m-%d_%H%M')
-            # with open(os.path.join(settings.BASE_DIR, 'exports', 'html', 'situation_{}.html').format(now), 'wb') as html_file:
-            #     html_file.write(html)
-            #     html_file.close()
-
             previous_statewide_cases = StatewideTotalDate.objects.order_by('-scrape_date').first().cumulative_positive_tests
 
             soup = BeautifulSoup(html, 'html.parser')
@@ -873,27 +695,21 @@ class Command(BaseCommand):
             self.get_statewide_cases_timeseries(soup, update_date)
             test_msg_output = self.get_statewide_tests_timeseries(soup, update_date)
             death_msg_output = self.get_statewide_deaths_timeseries(soup, update_date)
-
             total_hospitalizations = self.get_statewide_hospitalizations_timeseries(soup, update_date)
 
-            # TODO: AGE UPDATES
+            # TODO: MOVE TO NEW SCRIPT
             age_data = self.get_age_data(soup)
             age_msg_output = self.update_age_records(age_data)
 
+            # TODO: MOVE TO NEW SCRIPT
             if bool_updated_today:
-
                 recent_deaths_data = self.get_recent_deaths_data(soup)
-                # print(recent_deaths_data)
-
-                # existing_today_deaths, bool_yesterday = self.get_existing_recent_deaths_records()
-                # print(existing_today_deaths, bool_yesterday)
                 self.load_recent_deaths(recent_deaths_data)
 
+            # TODO: MOVE TO NEW SCRIPT
             county_data = self.get_county_data(soup)
             county_msg_output = self.update_county_records(county_data, update_date)
-            # county_msg_output = "Leaving county counts at yesterday's total until state clarifies"
 
-            print(statewide_data['cumulative_positive_tests'], previous_statewide_cases)
             if statewide_data['cumulative_positive_tests'] != previous_statewide_cases:
                 slack_latest(statewide_msg_output + death_msg_output + test_msg_output + county_msg_output, '#virus')
             else:

@@ -36,17 +36,6 @@ class Command(BaseCommand):
             latest_record = StatewideHospitalizationsDate.objects.filter(reported_date=t).values().latest('scrape_date')
             hosp_timeseries_values[t] = latest_record
 
-        # this is a weird one -- we want the totals as they were reported at the time, not the updated totals. Only needed for the cumulative totals
-        hosp_totals_values = {}
-        hosp_scrape_dates =  StatewideHospitalizationsDate.objects.all().values_list('scrape_date', flat=True).distinct()
-        for t in hosp_scrape_dates:
-            try:
-                # For most dates now the max value is contained in the "Missing" cell
-                total_record = StatewideHospitalizationsDate.objects.get(scrape_date=t, reported_date=None).__dict__
-            except:
-                total_record = StatewideHospitalizationsDate.objects.filter(scrape_date=t).latest('reported_date').__dict__
-            hosp_totals_values[t] = total_record
-
         # Deaths: Get max scrape date for each real date
         deaths_timeseries_values = {}
         deaths_reported_dates = StatewideDeathsDate.objects.all().values_list('reported_date', flat=True).distinct()
@@ -99,24 +88,6 @@ class Command(BaseCommand):
                     # This will usually just be today's values because no samples have come back yet
                     new_cases_sample_date = 0
 
-                if current_date in hosp_totals_values:
-                    ht = hosp_totals_values[current_date]
-                    hosp_total_daily_change = ht['total_hospitalizations'] - total_hospitalizations
-
-                    if total_icu_admissions:
-                        icu_total_daily_change = ht['total_icu_admissions'] - total_icu_admissions
-                    else:
-                        icu_total_daily_change = None
-
-                    total_hospitalizations = ht['total_hospitalizations']
-                    total_icu_admissions = ht['total_icu_admissions']
-                else:
-                    hosp_total_daily_change = topline_data['hospitalized_total_daily_change']
-                    icu_total_daily_change = None
-
-                    total_hospitalizations = topline_data['cumulative_hospitalized']
-                    total_icu_admissions = None
-
                 if current_date in hosp_timeseries_values:
                     # print('timeseries')
                     cr = hosp_timeseries_values[current_date]
@@ -168,10 +139,10 @@ class Command(BaseCommand):
                     'cases_total_sample_date': total_cases_sample_date,
                     'new_hosp_admissions': new_hosp_admissions,
                     'new_icu_admissions': new_icu_admissions,
-                    'hosp_total_daily_change': hosp_total_daily_change,
-                    'icu_total_daily_change': icu_total_daily_change,
-                    'total_hospitalized': total_hospitalizations,
-                    'total_icu_admissions': total_icu_admissions,
+                    'hosp_total_daily_change': topline_data['hospitalized_total_daily_change'],
+                    'icu_total_daily_change': topline_data['icu_total_daily_change'],
+                    'total_hospitalized': topline_data['cumulative_hospitalized'],
+                    'total_icu_admissions': topline_data['cumulative_icu'],
                     'currently_hospitalized': topline_data['currently_hospitalized'],
                     'currently_in_icu': topline_data['currently_in_icu'],
                     'total_statewide_deaths': topline_data['cumulative_statewide_deaths'],
