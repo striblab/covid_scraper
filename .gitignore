@@ -128,7 +128,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 covid_scraper/data
-*.DS_Store
+.DS_Store
 .env.*
 covid_scraper/settings/local_settings.py
 keys
