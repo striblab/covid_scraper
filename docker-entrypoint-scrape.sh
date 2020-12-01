@@ -37,32 +37,13 @@ if [ $ret -ne 0 ]; then
      echo "Somthing went wrong."
      exit
 fi
+
 echo Dumping latest county counts...
 python manage.py dump_mn_latest_counts
-
-# LATEST_HTML_SCRAPE=($(ls -Art $EXPORTS_ROOT/html/ | tail -n 1))
-# echo $LATEST_HTML_SCRAPE
-# echo "Pushing copy of MDH html..."
-# echo Pushing csvs to S3...
-# aws s3 cp $EXPORTS_ROOT/html/$LATEST_HTML_SCRAPE s3://$S3_URL/html/$LATEST_HTML_SCRAPE \
-# --content-type=text/html \
-# --acl public-read
-
-# Only dump if csvs have many lines or were produced in last few minutes
-LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv))
-
-if (("${LINE_COUNT[0]}" > 2)); then
-  echo "***** Uploading latest county count CSVs to S3. *****"
+LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv))
+if (("${LINE_COUNT[0]}" > 1)); then
+  echo "***** Uploading latest statewide and county count CSVs to S3. *****"
   download_datetime=$(date '+%Y%m%d%H%M%S');
-
-  echo Pushing csvs to S3...
-  # aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TESTS_FILENAME.csv \
-  # --content-type=text/csv \
-  # --acl public-read
-  #
-  # aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TESTS_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TESTS_FILENAME-$download_datetime.csv \
-  # --content-type=text/csv \
-  # --acl public-read
 
   aws s3 cp $EXPORTS_ROOT/$COUNTY_LATEST_FILENAME.json s3://$S3_URL/json/$COUNTY_LATEST_FILENAME.json \
   --content-type=application/json \
@@ -76,32 +57,8 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/$AGES_LATEST_FILENAME.csv \
-  --content-type=text/csv \
-  --acl public-read
-
-  aws s3 cp $EXPORTS_ROOT/$AGES_LATEST_FILENAME.json s3://$S3_URL/json/$AGES_LATEST_FILENAME.json \
-  --content-type=application/json \
-  --acl public-read
-
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$AGES_LATEST_FILENAME-$download_datetime.csv \
-  --content-type=text/csv \
-  --acl public-read
-
-  # aws s3 cp $EXPORTS_ROOT/mn_covid_data/$DEATH_AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/$DEATH_AGES_LATEST_FILENAME.csv \
-  # --content-type=text/csv \
-  # --acl public-read
-  #
-  # aws s3 cp $EXPORTS_ROOT/$DEATH_AGES_LATEST_FILENAME.json s3://$S3_URL/json/$DEATH_AGES_LATEST_FILENAME.json \
-  # --content-type=application/json \
-  # --acl public-read
-  #
-  # aws s3 cp $EXPORTS_ROOT/mn_covid_data/$DEATH_AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$DEATH_AGES_LATEST_FILENAME-$download_datetime.csv \
-  # --content-type=text/csv \
-  # --acl public-read
-
 else
-  echo "***** WARNING WARNING WARNING: The newest file is very short. Taking no further action. *****"
+  echo "***** WARNING WARNING WARNING: The newest 'latest' file is very short. Taking no further action. *****"
 fi
 printf "\n\n"
 
@@ -155,6 +112,29 @@ else
   echo "***** WARNING WARNING WARNING: The newest file is very short. Taking no further action. *****"
 fi
 printf "\n"
+
+# Only dump if csvs have many lines or were produced in last few minutes
+python manage.py dump_mn_age_data
+LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv))
+if (("${LINE_COUNT[0]}" > 2)); then
+  echo "***** Uploading latest age CSVs to S3. *****"
+  download_datetime=$(date '+%Y%m%d%H%M%S');
+
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/$AGES_LATEST_FILENAME.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/$AGES_LATEST_FILENAME.json s3://$S3_URL/json/$AGES_LATEST_FILENAME.json \
+  --content-type=application/json \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$AGES_LATEST_FILENAME-$download_datetime.csv \
+  --content-type=text/csv \
+  --acl public-read
+else
+  echo "***** WARNING WARNING WARNING: The newest age file is very short. Taking no further action. *****"
+fi
+printf "\n\n"
 
 echo "Updating zip code data ..."
 python manage.py dump_zip_cases

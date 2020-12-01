@@ -5,6 +5,32 @@ import math
 import requests
 from django.conf import settings
 
+def timeseries_table_parser(table):
+    ''' should work on multiple columns '''
+    rows = table.find_all("tr")
+    num_rows = len(rows)
+    data_rows = []
+    for k, row in enumerate(rows):
+        if k == 0:
+            first_row = row.find_all("th")
+            col_names = [' '.join(th.text.split()).replace('<br>', ' ') for th in first_row]
+        else:
+            data_row = {}
+            cells = row.find_all(["th", "td"])
+            if len(cells) > 0:  # Filter out bad TRs
+                for k, c in enumerate(col_names):
+
+                    data_row[c] = cells[k].text
+                data_rows.append(data_row)
+
+    return data_rows
+
+def parse_comma_int(input_str):
+    if input_str == '-':
+        return None
+    else:
+        return int(input_str.replace(',', ''))
+
 def slack_latest(text, channel):
     MAX_BLOCK_LENGTH = 3000
 

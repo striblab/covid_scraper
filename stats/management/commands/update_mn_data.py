@@ -11,14 +11,12 @@ from django.core.management.base import BaseCommand
 from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 
-from stats.models import County, CountyTestDate, StatewideAgeDate, StatewideTotalDate, Death, StatewideCasesBySampleDate, StatewideTestsDate, StatewideDeathsDate, StatewideHospitalizationsDate
-from stats.utils import slack_latest
+from stats.models import County, CountyTestDate, StatewideTotalDate, Death, StatewideCasesBySampleDate, StatewideTestsDate, StatewideDeathsDate, StatewideHospitalizationsDate
+from stats.utils import timeseries_table_parser, parse_comma_int, slack_latest
 
 
 class Command(BaseCommand):
     help = 'Check for new or updated results by date from Minnesota Department of Health table: https://www.health.state.mn.us/diseases/coronavirus/situation.html'
-
-    DEATH_DATA_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT1zrZSE_O7GVQF6IXhrClF-Izj-hZHr3lsV5w63c0qomI3XfWjlTG_lYf-wf0ANjDedtd-7J5IZeMQ/pub?gid=86034077&single=true&output=csv'
 
     def get_page_content(self):
         headers = {'user-agent': 'Michael Corey, Star Tribune, michael.corey@startribune.com'}
@@ -50,11 +48,11 @@ class Command(BaseCommand):
             last_row_values[c] = last_row[k].text
         return last_row_values
 
-    def parse_comma_int(self, input_str):
-        if input_str == '-':
-            return None
-        else:
-            return int(input_str.replace(',', ''))
+    # def parse_comma_int(self, input_str):
+    #     if input_str == '-':
+    #         return None
+    #     else:
+    #         return int(input_str.replace(',', ''))
 
     def parse_mdh_date(self, input_str, today):
         return datetime.datetime.strptime('{}/{}'.format(input_str, today.year), '%m/%d/%Y')
@@ -78,25 +76,25 @@ class Command(BaseCommand):
             data[label] = row.find("td").text.strip()
         return data
 
-    def timeseries_table_parser(self, table):
-        ''' should work on multiple columns '''
-        rows = table.find_all("tr")
-        num_rows = len(rows)
-        data_rows = []
-        for k, row in enumerate(rows):
-            if k == 0:
-                first_row = row.find_all("th")
-                col_names = [' '.join(th.text.split()).replace('<br>', ' ') for th in first_row]
-            else:
-                data_row = {}
-                cells = row.find_all(["th", "td"])
-                if len(cells) > 0:  # Filter out bad TRs
-                    for k, c in enumerate(col_names):
-
-                        data_row[c] = cells[k].text
-                    data_rows.append(data_row)
-
-        return data_rows
+    # def timeseries_table_parser(self, table):
+    #     ''' should work on multiple columns '''
+    #     rows = table.find_all("tr")
+    #     num_rows = len(rows)
+    #     data_rows = []
+    #     for k, row in enumerate(rows):
+    #         if k == 0:
+    #             first_row = row.find_all("th")
+    #             col_names = [' '.join(th.text.split()).replace('<br>', ' ') for th in first_row]
+    #         else:
+    #             data_row = {}
+    #             cells = row.find_all(["th", "td"])
+    #             if len(cells) > 0:  # Filter out bad TRs
+    #                 for k, c in enumerate(col_names):
+    #
+    #                     data_row[c] = cells[k].text
+    #                 data_rows.append(data_row)
+    #
+    #     return data_rows
 
     def pct_filter(self, input_str):
         '''Removing pct sign, and changing <1 to -1'''
@@ -110,17 +108,17 @@ class Command(BaseCommand):
     def get_county_data(self, soup):
         county_data = []
         county_table = soup.find("table", {'id': 'maptable'})
-        county_list = self.timeseries_table_parser(county_table)
+        county_list = timeseries_table_parser(county_table)
 
         for county in county_list:
             county_name = ' '.join(county['County'].split()).replace(' County', '')
             if county_name != 'Unknown/missing':
                 county_data.append({
                     'county': county_name,
-                    'cumulative_count': self.parse_comma_int(county['Total cases']),
-                    'cumulative_confirmed_cases': self.parse_comma_int(county['Total confirmed cases']),
-                    'cumulative_probable_cases': self.parse_comma_int(county['Total probable cases']),
-                    'cumulative_deaths': self.parse_comma_int(county['Total deaths']),
+                    'cumulative_count': parse_comma_int(county['Total cases']),
+                    'cumulative_confirmed_cases': parse_comma_int(county['Total confirmed cases']),
+                    'cumulative_probable_cases': parse_comma_int(county['Total probable cases']),
+                    'cumulative_deaths': parse_comma_int(county['Total deaths']),
                 })
 
         return county_data
@@ -223,7 +221,7 @@ class Command(BaseCommand):
         print('Parsing statewide cases timeseries...')
 
         cases_table = soup.find("table", {'id': 'casetable'})
-        cases_timeseries = self.timeseries_table_parser(cases_table)
+        cases_timeseries = timeseries_table_parser(cases_table)
         # print(cases_timeseries)
         if len(cases_timeseries) > 0:
             today = datetime.date.today()
@@ -238,8 +236,8 @@ class Command(BaseCommand):
                 else:
                     sample_date = self.parse_mdh_date(c['Specimen collection date'], today)
 
-                new_pcr_tests = self.parse_comma_int(c['Confirmed cases (PCR positive)'])
-                new_antigen_tests = self.parse_comma_int(c['Probable cases (Antigen positive)'])
+                new_pcr_tests = parse_comma_int(c['Confirmed cases (PCR positive)'])
+                new_antigen_tests = parse_comma_int(c['Probable cases (Antigen positive)'])
                 if new_antigen_tests:  # Handle old dates
                     new_cases = int(new_pcr_tests) + int(new_antigen_tests)
                 else:
@@ -248,12 +246,12 @@ class Command(BaseCommand):
                 co = StatewideCasesBySampleDate(
                     sample_date=sample_date,
                     new_cases=new_cases,
-                    total_cases=self.parse_comma_int(c['Total positive cases (cumulative)']),
+                    total_cases=parse_comma_int(c['Total positive cases (cumulative)']),
 
                     new_pcr_tests = new_pcr_tests,
                     new_antigen_tests = new_antigen_tests,
-                    total_pcr_tests = self.parse_comma_int(c['Total confirmed cases (cumulative)']),
-                    total_antigen_tests = self.parse_comma_int(c['Total probable cases (cumulative)']),
+                    total_pcr_tests = parse_comma_int(c['Total confirmed cases (cumulative)']),
+                    total_antigen_tests = parse_comma_int(c['Total probable cases (cumulative)']),
 
                     update_date=update_date,
                     scrape_date=today,
@@ -266,7 +264,7 @@ class Command(BaseCommand):
         print('Parsing statewide tests timeseries...')
 
         tests_table = soup.find("table", {'id': 'labtable'})
-        tests_timeseries = self.timeseries_table_parser(tests_table)
+        tests_timeseries = timeseries_table_parser(tests_table)
 
         if len(tests_timeseries) > 0:
             today = datetime.date.today()
@@ -281,14 +279,14 @@ class Command(BaseCommand):
                 else:
                     reported_date = self.parse_mdh_date(c['Date reported to MDH'], today)
 
-                new_state_tests = self.parse_comma_int(c['Completed PCR tests reported from the MDH Public Health Lab'])
-                new_external_tests = self.parse_comma_int(c['Completed PCR tests reported from external laboratories'])
+                new_state_tests = parse_comma_int(c['Completed PCR tests reported from the MDH Public Health Lab'])
+                new_external_tests = parse_comma_int(c['Completed PCR tests reported from external laboratories'])
 
-                total_tests = self.parse_comma_int(c['Total approximate number of completed tests (cumulative)'])
+                total_tests = parse_comma_int(c['Total approximate number of completed tests (cumulative)'])
 
-                new_antigen_tests = self.parse_comma_int(c['Completed antigen tests reported from external laboratories'])
-                total_pcr_tests = self.parse_comma_int(c['Total approximate number of completed PCR tests (cumulative)'])
-                total_antigen_tests = self.parse_comma_int(c['Total approximate number of completed antigen tests (cumulative)'])
+                new_antigen_tests = parse_comma_int(c['Completed antigen tests reported from external laboratories'])
+                total_pcr_tests = parse_comma_int(c['Total approximate number of completed PCR tests (cumulative)'])
+                total_antigen_tests = parse_comma_int(c['Total approximate number of completed antigen tests (cumulative)'])
 
                 new_pcr_tests = new_state_tests + new_external_tests
                 if new_antigen_tests:
@@ -324,7 +322,7 @@ class Command(BaseCommand):
         print('Parsing statewide hospitalizations timeseries...')
 
         hosp_table = table = soup.find("table", {'id': 'hosptable'})
-        hosp_timeseries = self.timeseries_table_parser(hosp_table)
+        hosp_timeseries = timeseries_table_parser(hosp_table)
 
         if len(hosp_timeseries) > 0:
             today = datetime.date.today()
@@ -345,15 +343,15 @@ class Command(BaseCommand):
                 if c['Cases admitted to a hospital'] in ['-', '-\xa0\xa0 ']:
                     new_hospitalizations = None
                 else:
-                    new_hospitalizations = self.parse_comma_int(c['Cases admitted to a hospital'])
+                    new_hospitalizations = parse_comma_int(c['Cases admitted to a hospital'])
 
                 if c['Cases admitted to an ICU'] in ['-', '-\xa0\xa0 ']:
                     new_icu_admissions = None
                 else:
-                    new_icu_admissions = self.parse_comma_int(c['Cases admitted to an ICU'])
+                    new_icu_admissions = parse_comma_int(c['Cases admitted to an ICU'])
 
-                total_hospitalizations = self.parse_comma_int(c['Total hospitalizations (cumulative)'])
-                total_icu_admissions = self.parse_comma_int(c['Total ICU hospitalizations (cumulative)'])
+                total_hospitalizations = parse_comma_int(c['Total hospitalizations (cumulative)'])
+                total_icu_admissions = parse_comma_int(c['Total ICU hospitalizations (cumulative)'])
 
                 std = StatewideHospitalizationsDate(
                     reported_date=reported_date,
@@ -375,7 +373,7 @@ class Command(BaseCommand):
         print('Parsing statewide deaths timeseries...')
 
         deaths_table = table = soup.find("table", {'id': 'deathtable'})
-        deaths_timeseries = self.timeseries_table_parser(deaths_table)
+        deaths_timeseries = timeseries_table_parser(deaths_table)
         # print(deaths_timeseries)
 
         if len(deaths_timeseries) > 0:
@@ -395,9 +393,9 @@ class Command(BaseCommand):
                 if c['Newly reported deaths'] in ['', '-', '-\xa0\xa0 ']:
                   new_deaths = None
                 else:
-                  new_deaths = self.parse_comma_int(c['Newly reported deaths'])
+                  new_deaths = parse_comma_int(c['Newly reported deaths'])
 
-                total_deaths = self.parse_comma_int(c['Total deaths (cumulative)'])
+                total_deaths = parse_comma_int(c['Total deaths (cumulative)'])
 
                 std = StatewideDeathsDate(
                   reported_date=reported_date,
@@ -419,40 +417,37 @@ class Command(BaseCommand):
         output = {}
 
         hosp_table = soup.find("table", {'id': 'hosptotal'})
-        # TODO: Unify with other totals to simplify timeseries output
         hosp_table_latest = self.totals_table_parser(hosp_table)
-        output['cumulative_hospitalized'] = self.parse_comma_int(hosp_table_latest['Total cases hospitalized (cumulative)'])
-        output['cumulative_icu'] = self.parse_comma_int(hosp_table_latest['Total cases hospitalized in ICU (cumulative)'])
-
-        print(output['cumulative_hospitalized'], output['cumulative_icu'])
+        output['cumulative_hospitalized'] = parse_comma_int(hosp_table_latest['Total cases hospitalized (cumulative)'])
+        output['cumulative_icu'] = parse_comma_int(hosp_table_latest['Total cases hospitalized in ICU (cumulative)'])
 
         cumulative_cases_table = soup.find("table", {'id': 'casetotal'})
         cumulative_cases_latest = self.totals_table_parser(cumulative_cases_table)
-        output['cumulative_positive_tests'] = self.parse_comma_int(cumulative_cases_latest['Total positive cases (cumulative)'])
-        output['cumulative_confirmed_cases'] = self.parse_comma_int(cumulative_cases_latest['Total confirmed cases (PCR positive) (cumulative)'])
-        output['cumulative_probable_cases'] = self.parse_comma_int(cumulative_cases_latest['Total probable cases (Antigen positive) (cumulative)'])
+        output['cumulative_positive_tests'] = parse_comma_int(cumulative_cases_latest['Total positive cases (cumulative)'])
+        output['cumulative_confirmed_cases'] = parse_comma_int(cumulative_cases_latest['Total confirmed cases (PCR positive) (cumulative)'])
+        output['cumulative_probable_cases'] = parse_comma_int(cumulative_cases_latest['Total probable cases (Antigen positive) (cumulative)'])
 
         new_cases_table = soup.find("table", {'id': 'dailycasetotal'})
         new_cases_latest = self.totals_table_parser(new_cases_table)
-        output['cases_newly_reported'] = self.parse_comma_int(new_cases_latest['Newly reported cases'])
-        output['confirmed_cases_newly_reported'] = self.parse_comma_int(new_cases_latest['Newly reported confirmed cases'])
-        output['probable_cases_newly_reported'] = self.parse_comma_int(new_cases_latest['Newly reported probable cases'])
+        output['cases_newly_reported'] = parse_comma_int(new_cases_latest['Newly reported cases'])
+        output['confirmed_cases_newly_reported'] = parse_comma_int(new_cases_latest['Newly reported confirmed cases'])
+        output['probable_cases_newly_reported'] = parse_comma_int(new_cases_latest['Newly reported probable cases'])
 
         cumulative_tests_table = soup.find("table", {'id': 'testtotal'})
         cumulative_tests_latest = self.totals_table_parser(cumulative_tests_table)
-        output['total_statewide_tests'] = self.parse_comma_int(cumulative_tests_latest['Total approximate completed tests (cumulative)'])
-        output['cumulative_pcr_tests'] = self.parse_comma_int(cumulative_tests_latest['Total approximate number of completed PCR tests (cumulative)'])
-        output['cumulative_antigen_tests'] = self.parse_comma_int(cumulative_tests_latest['Total approximate number of completed antigen tests (cumulative)'])
+        output['total_statewide_tests'] = parse_comma_int(cumulative_tests_latest['Total approximate completed tests (cumulative)'])
+        output['cumulative_pcr_tests'] = parse_comma_int(cumulative_tests_latest['Total approximate number of completed PCR tests (cumulative)'])
+        output['cumulative_antigen_tests'] = parse_comma_int(cumulative_tests_latest['Total approximate number of completed antigen tests (cumulative)'])
 
         deaths_table = soup.find("table", {'id': 'deathtotal'})
         deaths_table_latest = self.totals_table_parser(deaths_table)
-        output['cumulative_statewide_deaths'] = self.parse_comma_int(deaths_table_latest['Total deaths (cumulative)'])
-        output['cumulative_confirmed_statewide_deaths'] = self.parse_comma_int(deaths_table_latest['Deaths from confirmed cases (cumulative)'])
-        output['cumulative_probable_statewide_deaths'] = self.parse_comma_int(deaths_table_latest['Deaths from probable cases (cumulative)'])
+        output['cumulative_statewide_deaths'] = parse_comma_int(deaths_table_latest['Total deaths (cumulative)'])
+        output['cumulative_confirmed_statewide_deaths'] = parse_comma_int(deaths_table_latest['Deaths from confirmed cases (cumulative)'])
+        output['cumulative_probable_statewide_deaths'] = parse_comma_int(deaths_table_latest['Deaths from probable cases (cumulative)'])
 
         recoveries_table = soup.find("table", {'id': 'noisototal'})
         recoveries_latest = self.totals_table_parser(recoveries_table)
-        output['cumulative_statewide_recoveries'] = self.parse_comma_int(recoveries_latest['Patients no longer needing isolation (cumulative)'])
+        output['cumulative_statewide_recoveries'] = parse_comma_int(recoveries_latest['Patients no longer needing isolation (cumulative)'])
 
         uls = soup.find_all('ul')
         for ul in uls:
@@ -546,11 +541,10 @@ class Command(BaseCommand):
 
         return final_msg
 
-
     def get_recent_deaths_data(self, soup):
         today = datetime.date.today()
         recent_deaths_table = table = soup.find("table", {'id': 'dailydeathar'})
-        recent_deaths_ages = self.timeseries_table_parser(recent_deaths_table)
+        recent_deaths_ages = timeseries_table_parser(recent_deaths_table)
 
         cleaned_data = []
 
@@ -630,36 +624,6 @@ class Command(BaseCommand):
                     add_count -= 1
             Death.objects.bulk_create(new_deaths)
 
-    def get_age_data(self, soup):
-        age_table = soup.find("table", {'id': 'agetable'})
-        ages_data = self.timeseries_table_parser(age_table)
-
-        cleaned_ages_data = []
-        for d in ages_data:
-            d['Number of Cases'] = self.parse_comma_int(d['Number of Cases'])
-            d['Number of Deaths'] = self.parse_comma_int(d['Number of Deaths'])
-            cleaned_ages_data.append(d)
-        return cleaned_ages_data
-
-    def update_age_records(self, age_data):
-        today = datetime.date.today()
-        for a in age_data:
-            try:
-                current_observation = StatewideAgeDate.objects.get(
-                    scrape_date=today,
-                    age_group=a['Age Group']
-                )
-                print('Updating existing ages for {} on {}'.format(a['Age Group'], today))
-            except:
-                print('First age record for {} on {}'.format(a['Age Group'], today))
-                current_observation = StatewideAgeDate(
-                    scrape_date=today,
-                    age_group=a['Age Group']
-                )
-            current_observation.case_count = a['Number of Cases']
-            current_observation.death_count = a['Number of Deaths']
-            current_observation.save()
-
     def updated_today(self, soup):
         update_date_node = soup.find("strong", text=re.compile('Updated [A-z]+ \d{1,2}, \d{4}')).text
 
@@ -693,10 +657,6 @@ class Command(BaseCommand):
             test_msg_output = self.get_statewide_tests_timeseries(soup, update_date)
             death_msg_output = self.get_statewide_deaths_timeseries(soup, update_date)
             total_hospitalizations = self.get_statewide_hospitalizations_timeseries(soup, update_date)
-
-            # TODO: MOVE TO NEW SCRIPT
-            age_data = self.get_age_data(soup)
-            age_msg_output = self.update_age_records(age_data)
 
             # TODO: MOVE TO NEW SCRIPT
             if bool_updated_today:
