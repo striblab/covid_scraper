@@ -282,18 +282,18 @@ class Command(BaseCommand):
             print('Adding {} records of test timeseries data'.format(len(test_objs)))
             StatewideTestsDate.objects.bulk_create(test_objs)
 
-            # calculate/add rolling average
-            print('Calculating rolling averages ...')
-            tests_added = StatewideTestsDate.objects.filter(scrape_date=today).annotate(
-                new_tests_rolling_temp=Window(
-                    expression=Avg('new_tests'),
-                    order_by=F('reported_date').asc(),
-                    frame=RowRange(start=-6,end=0)
-                )
-            )
-            for t in tests_added:
-                t.new_tests_rolling = t.new_tests_rolling_temp
-                t.save()
+            # # calculate/add rolling average
+            # print('Calculating rolling averages ...')
+            # tests_added = StatewideTestsDate.objects.filter(scrape_date=today).annotate(
+            #     new_tests_rolling_temp=Window(
+            #         expression=Avg('new_tests'),
+            #         order_by=F('reported_date').asc(),
+            #         frame=RowRange(start=-6,end=0)
+            #     )
+            # )
+            # for t in tests_added:
+            #     t.new_tests_rolling = t.new_tests_rolling_temp
+            #     t.save()
 
         msg_output = '*{}* total tests completed (*{}* today)\n\n'.format(f'{total_tests:,}', self.change_sign(new_tests))
         print(msg_output)
@@ -418,17 +418,17 @@ class Command(BaseCommand):
             StatewideDeathsDate.objects.bulk_create(death_objs)
 
             # calculate/add rolling average
-            print('Calculating rolling averages ...')
-            deaths_added = StatewideDeathsDate.objects.filter(scrape_date=today).annotate(
-                new_deaths_rolling_temp=Window(
-                  expression=Avg('new_deaths'),
-                  order_by=F('reported_date').asc(),
-                  frame=RowRange(start=-6,end=0)
-                )
-            )
-            for t in deaths_added:
-                t.new_deaths_rolling = t.new_deaths_rolling_temp
-                t.save()
+            # print('Calculating rolling averages ...')
+            # deaths_added = StatewideDeathsDate.objects.filter(scrape_date=today).annotate(
+            #     new_deaths_rolling_temp=Window(
+            #       expression=Avg('new_deaths'),
+            #       order_by=F('reported_date').asc(),
+            #       frame=RowRange(start=-6,end=0)
+            #     )
+            # )
+            # for t in deaths_added:
+            #     t.new_deaths_rolling = t.new_deaths_rolling_temp
+            #     t.save()
 
             msg_output = '*{}* total deaths (*{}* reported today)\n\n'.format(f'{total_deaths:,}', self.change_sign(new_deaths))
             print(msg_output)

@@ -87,7 +87,7 @@ class StatewideHospitalizationsDate(models.Model):
 class StatewideDeathsDate(models.Model):
     reported_date = models.DateField(null=True)
     new_deaths = models.IntegerField(default=0, null=True)
-    new_deaths_rolling = models.FloatField(default=0, null=True)
+    new_deaths_rolling = models.FloatField(default=0, null=True)  # No longer calculated at DB level
     total_deaths = models.IntegerField(default=0, null=True)
     update_date = models.DateField(null=True)  # The day MDH said this data was last updated
     scrape_date = models.DateField()
