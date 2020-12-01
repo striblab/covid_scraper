@@ -3,7 +3,16 @@ import datetime
 import json
 import math
 import requests
+
 from django.conf import settings
+
+def get_situation_page_content():
+    headers = {'user-agent': 'Michael Corey, Star Tribune, michael.corey@startribune.com'}
+    r = requests.get('https://www.health.state.mn.us/diseases/coronavirus/situation.html', headers=headers)
+    if r.status_code == requests.codes.ok:
+        return r.content
+    else:
+        return False
 
 def timeseries_table_parser(table):
     ''' should work on multiple columns '''
@@ -30,6 +39,15 @@ def parse_comma_int(input_str):
         return None
     else:
         return int(input_str.replace(',', ''))
+
+def updated_today(soup):
+    update_date_node = soup.find("strong", text=re.compile('Updated [A-z]+ \d{1,2}, \d{4}')).text
+
+    update_date = datetime.datetime.strptime(re.search('([A-z]+ \d{1,2}, \d{4})', update_date_node).group(1), '%B %d, %Y').date()
+    if update_date == datetime.datetime.now().date():
+        return True, update_date
+    else:
+        return False, update_date
 
 def slack_latest(text, channel):
     MAX_BLOCK_LENGTH = 3000

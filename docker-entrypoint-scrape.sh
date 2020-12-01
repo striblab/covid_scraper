@@ -38,6 +38,9 @@ if [ $ret -ne 0 ]; then
      exit
 fi
 
+echo Updating latest county counts...
+python manage.py update_mn_county_data
+
 echo Dumping latest county counts...
 python manage.py dump_mn_latest_counts
 LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv))
@@ -114,7 +117,7 @@ fi
 printf "\n"
 
 # Only dump if csvs have many lines or were produced in last few minutes
-python manage.py dump_mn_age_data
+python manage.py update_mn_age_data
 LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv))
 if (("${LINE_COUNT[0]}" > 2)); then
   echo "***** Uploading latest age CSVs to S3. *****"
@@ -135,6 +138,9 @@ else
   echo "***** WARNING WARNING WARNING: The newest age file is very short. Taking no further action. *****"
 fi
 printf "\n\n"
+
+echo Updating recent deaths ...
+python manage.py update_mn_recent_deaths
 
 echo "Updating zip code data ..."
 python manage.py dump_zip_cases

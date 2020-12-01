@@ -1,4 +1,3 @@
-import requests
 import datetime
 from bs4 import BeautifulSoup
 
@@ -6,18 +5,10 @@ from django.core.management.base import BaseCommand
 from django.conf import settings
 
 from stats.models import StatewideAgeDate
-from stats.utils import timeseries_table_parser, parse_comma_int, slack_latest
+from stats.utils import get_situation_page_content, timeseries_table_parser, parse_comma_int, slack_latest
 
 class Command(BaseCommand):
     help = 'Age data breakout from main scraper'
-
-    def get_page_content(self):
-        headers = {'user-agent': 'Michael Corey, Star Tribune, michael.corey@startribune.com'}
-        r = requests.get('https://www.health.state.mn.us/diseases/coronavirus/situation.html', headers=headers)
-        if r.status_code == requests.codes.ok:
-            return r.content
-        else:
-            return False
 
     def get_age_data(self, soup):
         age_table = soup.find("table", {'id': 'agetable'})
@@ -53,9 +44,9 @@ class Command(BaseCommand):
         return 'COVID scraper: Age records updated.'
 
     def handle(self, *args, **options):
-        html = self.get_page_content()
+        html = get_situation_page_content()
         if not html:
-            slack_latest("COVID scraper ERROR: get_mn_age_data.py can't find page HTML. Not proceeding.", '#robot-dojo')
+            slack_latest("COVID scraper ERROR: update_mn_age_data.py can't find page HTML. Not proceeding.", '#robot-dojo')
         else:
 
             soup = BeautifulSoup(html, 'html.parser')

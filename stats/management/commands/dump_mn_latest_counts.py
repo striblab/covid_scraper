@@ -161,32 +161,8 @@ class Command(BaseCommand):
 
                 rows.append(self.build_ages_row(a.age_group, case_count, death_count, total_case_count, total_death_count, a.pct_pop))
 
-                # cases_pct = self.round_special(100 * (float(case_count) / float(total_case_count)))
-                # deaths_pct = self.round_special(100 * (float(death_count) / float(total_death_count)))
-                #
-                # case_count = group_records.aggregate(Sum('case_count'))['case_count__sum']
-                # death_count = group_records.aggregate(Sum('case_count'))['case_count__sum']
-                #
-                # rows.append({
-                #     'age_group': a.age_group,
-                #     'cases': case_count,
-                #     'deaths': death_count,
-                #     'pct_of_cases': cases_pct,
-                #     'pct_of_deaths': death_pct,
-                #     'pct_state_pop': a.pct_pop
-                # })
-
-                # rows.append(self.build_ages_row(lr, total_case_count, total_death_count, a.pct_pop))
-
             missing = StatewideAgeDate.objects.get(age_group='Unknown/missing', scrape_date=max_date)
-            # writer.writerow({
-            #     'age_group': missing.age_group,
-            #     'cases': lr.case_count,
-            #     'deaths': lr.death_count,
-            #     'pct_of_cases': missing.cases_pct,
-            #     'pct_of_deaths': missing.deaths_pct,
-            #     'pct_state_pop': 'N/A'
-            # })
+
             rows.append(self.build_ages_row(missing.age_group, missing.case_count, missing.death_count, total_case_count, total_death_count, 'N/A'))
 
             writer.writerows(rows)

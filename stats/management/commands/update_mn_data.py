@@ -1,7 +1,6 @@
 import re
 import os
 import csv
-import requests
 import datetime
 from datetime import timedelta
 from bs4 import BeautifulSoup
@@ -12,19 +11,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 
 from stats.models import County, CountyTestDate, StatewideTotalDate, Death, StatewideCasesBySampleDate, StatewideTestsDate, StatewideDeathsDate, StatewideHospitalizationsDate
-from stats.utils import timeseries_table_parser, parse_comma_int, slack_latest
+from stats.utils import get_situation_page_content, timeseries_table_parser, parse_comma_int, updated_today, slack_latest
 
 
 class Command(BaseCommand):
     help = 'Check for new or updated results by date from Minnesota Department of Health table: https://www.health.state.mn.us/diseases/coronavirus/situation.html'
-
-    def get_page_content(self):
-        headers = {'user-agent': 'Michael Corey, Star Tribune, michael.corey@startribune.com'}
-        r = requests.get('https://www.health.state.mn.us/diseases/coronavirus/situation.html', headers=headers)
-        if r.status_code == requests.codes.ok:
-            return r.content
-        else:
-            return False
 
     def ul_regex(self, preceding_text, input_str):
         match = re.search(r'{}: ([\d,]+)'.format(preceding_text), input_str)
@@ -33,7 +24,6 @@ class Command(BaseCommand):
         return False
 
     def detail_tables_regex(self, table):
-        # table = soup.find("th", text=th_text).find_parent("table")
         rows = table.find_all("tr")
         num_rows = len(rows)
         for k, row in enumerate(rows):
@@ -47,12 +37,6 @@ class Command(BaseCommand):
         for k, c in enumerate(col_names):
             last_row_values[c] = last_row[k].text
         return last_row_values
-
-    # def parse_comma_int(self, input_str):
-    #     if input_str == '-':
-    #         return None
-    #     else:
-    #         return int(input_str.replace(',', ''))
 
     def parse_mdh_date(self, input_str, today):
         return datetime.datetime.strptime('{}/{}'.format(input_str, today.year), '%m/%d/%Y')
@@ -76,26 +60,6 @@ class Command(BaseCommand):
             data[label] = row.find("td").text.strip()
         return data
 
-    # def timeseries_table_parser(self, table):
-    #     ''' should work on multiple columns '''
-    #     rows = table.find_all("tr")
-    #     num_rows = len(rows)
-    #     data_rows = []
-    #     for k, row in enumerate(rows):
-    #         if k == 0:
-    #             first_row = row.find_all("th")
-    #             col_names = [' '.join(th.text.split()).replace('<br>', ' ') for th in first_row]
-    #         else:
-    #             data_row = {}
-    #             cells = row.find_all(["th", "td"])
-    #             if len(cells) > 0:  # Filter out bad TRs
-    #                 for k, c in enumerate(col_names):
-    #
-    #                     data_row[c] = cells[k].text
-    #                 data_rows.append(data_row)
-    #
-    #     return data_rows
-
     def pct_filter(self, input_str):
         '''Removing pct sign, and changing <1 to -1'''
         if input_str == '<1%':
@@ -104,117 +68,6 @@ class Command(BaseCommand):
             return int(input_str.replace('%', ''))
         except:
             return None
-
-    def get_county_data(self, soup):
-        county_data = []
-        county_table = soup.find("table", {'id': 'maptable'})
-        county_list = timeseries_table_parser(county_table)
-
-        for county in county_list:
-            county_name = ' '.join(county['County'].split()).replace(' County', '')
-            if county_name != 'Unknown/missing':
-                county_data.append({
-                    'county': county_name,
-                    'cumulative_count': parse_comma_int(county['Total cases']),
-                    'cumulative_confirmed_cases': parse_comma_int(county['Total confirmed cases']),
-                    'cumulative_probable_cases': parse_comma_int(county['Total probable cases']),
-                    'cumulative_deaths': parse_comma_int(county['Total deaths']),
-                })
-
-        return county_data
-
-    def update_county_records(self, county_data, update_date):
-        msg_output = ''
-
-        today = datetime.date.today()
-
-        for observation in county_data:
-            previous_county_observation = CountyTestDate.objects.filter(county__name__iexact=observation['county'].strip(), scrape_date__lt=today).order_by('-scrape_date').first()
-            if previous_county_observation:
-                previous_county_cases_total = previous_county_observation.cumulative_count
-                previous_county_deaths_total = previous_county_observation.cumulative_deaths
-            else:
-                previous_county_cases_total = 0
-                previous_county_deaths_total = 0
-
-            daily_cases = observation['cumulative_count'] - previous_county_cases_total
-            daily_deaths = observation['cumulative_deaths'] - previous_county_deaths_total
-
-            # Check if there is already an entry today
-            try:
-                county_observation = CountyTestDate.objects.get(
-                    county__name__iexact=observation['county'].strip(),
-                    scrape_date=today
-                )
-                print('Updating {} County: {}'.format(observation['county'], observation['cumulative_count']))
-                county_observation.update_date = update_date
-                county_observation.daily_total_cases = daily_cases
-                county_observation.cumulative_count = observation['cumulative_count']
-                county_observation.daily_deaths = daily_deaths
-                county_observation.cumulative_deaths = observation['cumulative_deaths']
-
-                county_observation.cumulative_confirmed_cases = observation['cumulative_confirmed_cases']
-                county_observation.cumulative_probable_cases = observation['cumulative_probable_cases']
-
-                county_observation.save()
-            except ObjectDoesNotExist:
-                try:
-                    print('Creating 1st {} County record of day: {}'.format(observation['county'], observation['cumulative_count']))
-                    county_observation = CountyTestDate(
-                        county=County.objects.get(name__iexact=observation['county'].strip()),
-                        scrape_date=today,
-                        update_date=update_date,
-                        daily_total_cases=daily_cases,
-                        cumulative_count=observation['cumulative_count'],
-                        daily_deaths=daily_deaths,
-                        cumulative_deaths=observation['cumulative_deaths'],
-
-                        cumulative_confirmed_cases = observation['cumulative_confirmed_cases'],
-                        cumulative_probable_cases = observation['cumulative_probable_cases'],
-                    )
-                    county_observation.save()
-                except Exception as e:
-                    slack_latest('SCRAPER ERROR: {}'.format(e), '#robot-dojo')
-                    raise
-
-            # # Slack lastest results
-            # case_change_text = ''
-            # if county_observation.daily_total_cases != 0:
-            #     optional_plus = '+'
-            #     if county_observation.daily_total_cases < 0:
-            #         optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE *** '
-            #     elif county_observation.daily_total_cases == county_observation.cumulative_count:
-            #         optional_plus = ':heavy_plus_sign: NEW COUNTY '
-            #
-            #     case_change_text = ' (:point_right: {}{} today)'.format(optional_plus, county_observation.daily_total_cases)
-            #
-            # deaths_change_text = ''
-            # if int(county_observation.cumulative_deaths) > 0:
-            #     deaths_change_text = ', {} death'.format(county_observation.cumulative_deaths)
-            #     if int(county_observation.cumulative_deaths) > 1:
-            #         deaths_change_text += 's' # pluralize
-            #
-            #     if county_observation.daily_deaths != 0:
-            #         optional_plus = '+'
-            #         if county_observation.daily_deaths < 0:
-            #             optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE '
-            #         elif county_observation.daily_deaths == county_observation.cumulative_deaths:
-            #             optional_plus = ':heavy_plus_sign: NEW COUNTY '
-            #
-            #         deaths_change_text += ' (:point_right: {}{} today)'.format(optional_plus, county_observation.daily_deaths)
-            #
-            # # print('{}: {}{}\n'.format(county_observation.county.name, county_observation.cumulative_count, case_change_text))
-            # msg_output = msg_output + '{}: {} cases{}{}\n'.format(
-            #     county_observation.county.name,
-            #     f'{county_observation.cumulative_count:,}',
-            #     case_change_text,
-            #     deaths_change_text
-            # )
-
-        # final_msg = 'COVID scraper county-by-county results: \n\n' + msg_output
-        # print(final_msg)
-
-        return msg_output
 
     def get_statewide_cases_timeseries(self, soup, update_date):
         '''How to deal with back-dated statewide totals if they use sample dates'''
@@ -541,100 +394,8 @@ class Command(BaseCommand):
 
         return final_msg
 
-    def get_recent_deaths_data(self, soup):
-        today = datetime.date.today()
-        recent_deaths_table = table = soup.find("table", {'id': 'dailydeathar'})
-        recent_deaths_ages = timeseries_table_parser(recent_deaths_table)
-
-        cleaned_data = []
-
-        for group in recent_deaths_ages:
-            # County workaround
-            if group['County of residence'] == 'Otter':
-                d_county_name = 'Otter Tail'
-            elif group['County of residence'] == 'Unknown/missing':
-                d_county_name = None
-            else:
-                d_county_name = re.sub('\s+', ' ', group['County of residence'])
-
-            print(d_county_name)
-            clean_row = {
-                'scrape_date': today,
-                'county__name': d_county_name,
-                'age_group': group['Age group'].replace(' years', '').strip(),
-                'count': int(group['Number of newly reported deaths']),
-            }
-            cleaned_data.append(clean_row)
-        return cleaned_data
-
-    def load_recent_deaths(self, scraped_deaths):
-        existing_deaths = Death.objects.filter(scrape_date=datetime.date.today()).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
-
-        date_stripped_scraped = [{i:d[i] for i in d if i != 'scrape_date'} for d in scraped_deaths]
-        date_stripped_existing = [{i:d[i] for i in d if i != 'scrape_date'} for d in existing_deaths]
-
-        bool_changes = [i for i in date_stripped_scraped if i not in date_stripped_existing] != []
-
-        if bool_changes:
-
-            deaths_to_add = []
-            deaths_to_remove = []
-            for sd in scraped_deaths:
-                similar = [ed for ed in existing_deaths if ed['county__name'] == sd['county__name'] and ed['age_group'] == sd['age_group']]
-                # print('Similar: ', similar)
-                if len(similar) == 0:
-                    # add all to list
-                    deaths_to_add.append(sd)
-                else:
-                    # Check if we have enough or too many for this grouping
-                    unknown_deaths = sd['count'] - similar[0]['count']
-                    if unknown_deaths > 0:
-                        print('Adding {} deaths: {} {}'.format(unknown_deaths, sd['county__name'], sd['age_group']))
-                        sd['count'] = unknown_deaths
-                        deaths_to_add.append(sd)
-                    elif unknown_deaths < 0:
-                        print('WARNING: Subtracting {} deaths: {} {}'.format(unknown_deaths, sd['county__name'], sd['age_group']))
-                        sd['count'] = unknown_deaths
-                        sd['scrape_date'] = similar[0]['scrape_date']  # If you're going to remove, make sure it's from the max_date, not necessarily today
-                        deaths_to_remove.append(sd)
-
-            # Removing records
-            for group in deaths_to_remove:
-                remove_count = group['count']
-                county = County.objects.get(name=group['county__name'])
-                while remove_count < 0:
-                    Death.objects.filter(scrape_date=group['scrape_date'], age_group=group['age_group'], county=county).last().delete()
-                    remove_count += 1
-
-            # Adding records
-            new_deaths = []
-            for group in deaths_to_add:
-                add_count = group['count']
-                if group['county__name']:
-                    county = County.objects.get(name=group['county__name'])
-                else:
-                    county = None
-                while add_count > 0:
-                    death = Death(
-                        scrape_date=group['scrape_date'],
-                        age_group=group['age_group'],
-                        county=county,
-                    )
-                    new_deaths.append(death)
-                    add_count -= 1
-            Death.objects.bulk_create(new_deaths)
-
-    def updated_today(self, soup):
-        update_date_node = soup.find("strong", text=re.compile('Updated [A-z]+ \d{1,2}, \d{4}')).text
-
-        update_date = datetime.datetime.strptime(re.search('([A-z]+ \d{1,2}, \d{4})', update_date_node).group(1), '%B %d, %Y').date()
-        if update_date == datetime.datetime.now().date():
-            return True, update_date
-        else:
-            return False, update_date
-
     def handle(self, *args, **options):
-        html = self.get_page_content()
+        html = get_situation_page_content()
         if not html:
             slack_latest('WARNING: Scraper error. Not proceeding.', '#robot-dojo')
         else:
@@ -643,7 +404,7 @@ class Command(BaseCommand):
             soup = BeautifulSoup(html, 'html.parser')
 
             # Will make this more important after we're sure it works
-            bool_updated_today, update_date = self.updated_today(soup)
+            bool_updated_today, update_date = updated_today(soup)
             print(update_date)
             if bool_updated_today:
                 print('Updated today')
@@ -658,18 +419,9 @@ class Command(BaseCommand):
             death_msg_output = self.get_statewide_deaths_timeseries(soup, update_date)
             total_hospitalizations = self.get_statewide_hospitalizations_timeseries(soup, update_date)
 
-            # TODO: MOVE TO NEW SCRIPT
-            if bool_updated_today:
-                recent_deaths_data = self.get_recent_deaths_data(soup)
-                self.load_recent_deaths(recent_deaths_data)
-
-            # TODO: MOVE TO NEW SCRIPT
-            county_data = self.get_county_data(soup)
-            county_msg_output = self.update_county_records(county_data, update_date)
-
             if statewide_data['cumulative_positive_tests'] != previous_statewide_cases:
-                slack_latest(statewide_msg_output + death_msg_output + test_msg_output + county_msg_output, '#virus')
+                slack_latest(statewide_msg_output + death_msg_output + test_msg_output, '#virus')
             else:
 
-                # slack_latest(statewide_msg_output + death_msg_output + test_msg_output + county_msg_output, '#virus')  # Force output anyway
+                # slack_latest(statewide_msg_output + death_msg_output + test_msg_output, '#virus')  # Force output anyway
                 slack_latest('COVID scraper update: No changes detected.', '#robot-dojo')
