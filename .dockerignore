@@ -1,0 +1,14 @@
+covid_scraper/data
+!covid_scraper/data/acs_2018_5yr_zip_demo.csv
+!covid_scraper/data/nyt-us-counties.csv
+!covid_scraper/data/us_county_centroids_tl_2019_4326.csv
+!covid_scraper/data/county_pops_2019.csv
+
+covid_scraper/exports/
+!covid_scraper/exports/mn_covid_data
+
+covid_scraper/fixtures/
+covid_scraper/imports/
+.git
+.ipynb_checkpoints
+*.ipynb
