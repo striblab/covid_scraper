@@ -116,50 +116,29 @@ class StatewideTotalDate(models.Model):
     '''used for topline numbers'''
     cases_daily_change = models.IntegerField(default=0, null=True)  # Difference between total yesterday and today
     cases_newly_reported  = models.IntegerField(default=0, null=True)  # "new" cases per MDH, should add up to daily change when combined with cases_removed
-
-    # oct 14 add
     confirmed_cases_newly_reported = models.IntegerField(default=0, null=True)
     probable_cases_newly_reported = models.IntegerField(default=0, null=True)
-
-    # cases_removed = models.IntegerField(default=0, null=True)  # MDH removals
-    # cases_sample_date <- Data from time series, which will lag by several days
-
     removed_cases = models.IntegerField(default=0, null=True)
-    # new_cases = models.IntegerField(default=0, null=True)  # to deprecate
     deaths_daily_change = models.IntegerField(default=0, null=True)
-
     cumulative_positive_tests = models.IntegerField(default=0, null=True)
-
-    # oct 14 add
     cumulative_confirmed_cases = models.IntegerField(default=0, null=True)
     cumulative_probable_cases = models.IntegerField(default=0, null=True)
-
     cumulative_completed_tests = models.IntegerField(default=0, null=True)
     cumulative_completed_mdh = models.IntegerField(default=0, null=True)
     cumulative_completed_private = models.IntegerField(default=0, null=True)
-
-    # oct 14 add
     cumulative_pcr_tests = models.IntegerField(default=0, null=True)
     cumulative_antigen_tests = models.IntegerField(default=0, null=True)
-
     cumulative_hospitalized = models.IntegerField(default=0, null=True)
     cumulative_icu = models.IntegerField(default=0, null=True)
-
     currently_hospitalized = models.IntegerField(default=0, null=True)  # Deprecated as of 9/4/2020, but have old data
     currently_in_icu = models.IntegerField(default=0, null=True)  # Deprecated as of 9/4/2020, but have old data
-
     hospitalized_total_daily_change = models.IntegerField(default=0, null=True)
     icu_total_daily_change = models.IntegerField(default=0, null=True)
-
     cumulative_statewide_deaths = models.IntegerField(default=0, null=True)  # Captured separately from county totals, so they may not match
     cumulative_statewide_recoveries = models.IntegerField(default=0, null=True)
-
-    # oct 14 add
     cumulative_confirmed_statewide_deaths = models.IntegerField(default=0, null=True)
     cumulative_probable_statewide_deaths = models.IntegerField(default=0, null=True)
-
     update_date = models.DateField(null=True)  # The day MDH said this data was last updated
-
     scrape_date = models.DateField()
     last_update = models.DateTimeField(auto_now=True)
 
