@@ -24,7 +24,7 @@ class Command(BaseCommand):
         {'orig_file': 'https://mn.gov/covid19/assets/DialBackCSV_tcm1148-431875.csv', 'download_base_name': 'db_dialback_{}.csv'},
         {'orig_file': 'https://mn.gov/covid19/assets/HospitalCapacity_HistoricCSV_tcm1148-449110.csv', 'download_base_name': 'db_hosp_cap_legacy_{}.csv'},
         {'orig_file': 'https://mn.gov/covid19/assets/MNTRAC_ICU_NonICU_BedAvailability_IdentifiedSurge_CSV_tcm1148-455098.csv', 'download_base_name': 'db_hosp_cap_new_{}.csv'},
-        {'orig_file': 'https://mn.gov/covid19/assets/TELETRACKING_ICU_NonICU_Beds_in_Use_CSV_tcm1148-455097.csv', 'download_base_name': 'db_hosp_inuse_federal_new_{}.csv'},
+        {'orig_file': 'https://mn.gov/covid19/assets/TELETRACKING_ICU_NonICU_Beds_in_Use_CSV_tcm1148-455097.csv', 'download_base_name': 'db_hosp_inuse_federal_new_{}.csv'}, 
 
     ]
 

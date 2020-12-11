@@ -1,6 +1,7 @@
 from datetime import timedelta
 from django.db import models
 
+
 class County(models.Model):
     name = models.CharField(max_length=50)
     fips = models.CharField(max_length=5)
@@ -157,7 +158,6 @@ class StatewideTotalDate(models.Model):
             return self.new_deaths
 
 
-
 class CountyTestDate(models.Model):
     '''The daily total number of tests, according to the Minnesota Department of Health. If you scrape more than once a day, the count will be updated, so there is only 1 record per day.'''
     county = models.ForeignKey(County, on_delete=models.CASCADE)
@@ -180,6 +180,7 @@ class CountyTestDate(models.Model):
 
 
 class ZipCasesDate(models.Model):
+    ''' Loading and exporting for this is now handled by Lambda but this model db table is still used for that'''
     data_date = models.DateField()
     zip = models.CharField(max_length=7)
     cases_cumulative = models.IntegerField()

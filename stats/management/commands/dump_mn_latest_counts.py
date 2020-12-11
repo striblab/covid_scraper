@@ -137,7 +137,11 @@ class Command(BaseCommand):
             writer.writeheader()
 
             max_date = StatewideAgeDate.objects.aggregate(Max('scrape_date'))['scrape_date__max']
-            topline_data = StatewideTotalDate.objects.get(scrape_date=max_date)
+            try:
+                topline_data = StatewideTotalDate.objects.get(scrape_date=max_date)
+            except:
+                print('No topline data yet today, not exporting.')
+                return False
             total_case_count = topline_data.cumulative_positive_tests
             total_death_count = topline_data.cumulative_statewide_deaths
 
