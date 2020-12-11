@@ -142,8 +142,8 @@ printf "\n\n"
 echo Updating recent deaths ...
 python manage.py update_mn_recent_deaths
 
-echo "Updating zip code data ..."
-python manage.py dump_zip_cases
+# echo "Updating zip code data ..."
+# python manage.py dump_zip_cases
 
 if (("${LINE_COUNT[0]}" > 2)); then
   echo "Updating Github..."

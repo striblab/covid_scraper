@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 
 from django.core.management.base import BaseCommand
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 
 from stats.models import County, CountyTestDate
 from stats.utils import get_situation_page_content, timeseries_table_parser, parse_comma_int, slack_latest, updated_today

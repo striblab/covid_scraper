@@ -339,31 +339,7 @@ class Command(BaseCommand):
 
             for k, v in base_record_obj.items():
                 setattr(current_statewide_observation, k, v)
-                # current_statewide_observation[k] = v
             current_statewide_observation.save()
-
-            # current_statewide_observation.cumulative_positive_tests = statewide_data['cumulative_positive_tests']
-            # current_statewide_observation.cases_daily_change = cases_daily_change
-            # current_statewide_observation.cases_newly_reported = statewide_data['cases_newly_reported']
-            # current_statewide_observation.removed_cases = statewide_data['removed_cases']
-            # current_statewide_observation.deaths_daily_change = deaths_daily_change
-            # current_statewide_observation.cumulative_completed_tests = total_statewide_tests
-            # current_statewide_observation.cumulative_hospitalized = statewide_data['cumulative_hospitalized']
-            # current_statewide_observation.hospitalized_total_daily_change = hospitalized_total_daily_change
-            # current_statewide_observation.cumulative_icu = statewide_data['cumulative_icu']
-            # current_statewide_observation.icu_total_daily_change = icu_total_daily_change
-            # current_statewide_observation.cumulative_statewide_deaths = statewide_data['cumulative_statewide_deaths']
-            # current_statewide_observation.cumulative_statewide_recoveries = statewide_data['cumulative_statewide_recoveries']
-            # current_statewide_observation.confirmed_cases_newly_reported = statewide_data['confirmed_cases_newly_reported']
-            # current_statewide_observation.probable_cases_newly_reported = statewide_data['probable_cases_newly_reported']
-            # current_statewide_observation.cumulative_confirmed_cases = statewide_data['cumulative_confirmed_cases']
-            # current_statewide_observation.cumulative_probable_cases = statewide_data['cumulative_probable_cases']
-            # current_statewide_observation.cumulative_pcr_tests = statewide_data['cumulative_pcr_tests']
-            # current_statewide_observation.cumulative_antigen_tests = statewide_data['cumulative_antigen_tests']
-            # current_statewide_observation.cumulative_confirmed_statewide_deaths = statewide_data['cumulative_confirmed_statewide_deaths']
-            # current_statewide_observation.cumulative_probable_statewide_deaths = statewide_data['cumulative_probable_statewide_deaths']
-            # current_statewide_observation.update_date = update_date
-
 
         except ObjectDoesNotExist:
             try:
@@ -371,30 +347,6 @@ class Command(BaseCommand):
                 base_record_obj['scrape_date'] = today
 
                 current_statewide_observation = StatewideTotalDate(**base_record_obj)
-                # current_statewide_observation = StatewideTotalDate(
-                #     cumulative_positive_tests=statewide_data['cumulative_positive_tests'],
-                #     cases_daily_change=cases_daily_change,
-                #     cases_newly_reported=statewide_data['cases_newly_reported'],
-                #     removed_cases=statewide_data['removed_cases'],
-                #     deaths_daily_change=deaths_daily_change,
-                #     cumulative_completed_tests=total_statewide_tests,
-                #     cumulative_hospitalized=statewide_data['cumulative_hospitalized'],
-                #     hospitalized_total_daily_change=hospitalized_total_daily_change,
-                #     cumulative_icu = statewide_data['cumulative_icu'],
-                #     icu_total_daily_change = icu_total_daily_change,
-                #     cumulative_statewide_deaths=statewide_data['cumulative_statewide_deaths'],
-                #     cumulative_statewide_recoveries=statewide_data['cumulative_statewide_recoveries'],
-                #     confirmed_cases_newly_reported=statewide_data['confirmed_cases_newly_reported'],
-                #     probable_cases_newly_reported=statewide_data['probable_cases_newly_reported'],
-                #     cumulative_confirmed_cases=statewide_data['cumulative_confirmed_cases'],
-                #     cumulative_probable_cases=statewide_data['cumulative_probable_cases'],
-                #     cumulative_pcr_tests=statewide_data['cumulative_pcr_tests'],
-                #     cumulative_antigen_tests=statewide_data['cumulative_antigen_tests'],
-                #     cumulative_confirmed_statewide_deaths=statewide_data['cumulative_confirmed_statewide_deaths'],
-                #     cumulative_probable_statewide_deaths=statewide_data['cumulative_probable_statewide_deaths'],
-                #     update_date=update_date,
-                #     scrape_date=today,
-                # )
                 current_statewide_observation.save()
             except Exception as e:
                 slack_latest('SCRAPER ERROR: {}'.format(e), '#robot-dojo')

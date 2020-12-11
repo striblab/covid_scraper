@@ -1,9 +1,7 @@
 import re
 import os
-import json
 import datetime
 import pandas as pd
-import geopandas as gpd
 import numpy as np
 
 from django.conf import settings
