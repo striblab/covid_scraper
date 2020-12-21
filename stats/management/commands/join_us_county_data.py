@@ -128,15 +128,15 @@ class Command(BaseCommand):
             ]]
             df_subset.rename(columns={'STATEFP': 'state_fips', 'latitude_coalesced': 'latitude', 'longitude_coalesced': 'longitude'}, inplace=True)
 
-            print('Making state timeseries...')
-
-            df_bystate = df_subset[[
-                'date',
-                'state',
-                'cases',
-                'deaths',
-                # 'pop_2019'
-            ]].groupby(['state', 'date']).agg('sum').reset_index()
+            # print('Making state timeseries...')
+            #
+            # df_bystate = df_subset[[
+            #     'date',
+            #     'state',
+            #     'cases',
+            #     'deaths',
+            #     # 'pop_2019'
+            # ]].groupby(['state', 'date']).agg('sum').reset_index()
 
 
             # df_bystate_100_plus = df_bystate[df_bystate['cases'] >= 100].sort_values(['state', 'date'])
@@ -146,6 +146,16 @@ class Command(BaseCommand):
 
             # print('Exporting national timeseries...')
             # df_subset.to_csv(self.TIMESERIES_EXPORT_PATH, index=False)
+
+            # Get diff data
+            df_subset['cases_weekly'] = df_subset['cases'].diff(periods=-7)
+            df_subset['deaths_weekly'] = df_subset['deaths'].diff(periods=-7)
+
+            # 2019 annual esimate: https://www.census.gov/newsroom/press-kits/2019/national-state-estimates.html
+            us_pop = 328239523
+            df_subset['cases_weekly_per10k'] = round(df_subset['cases_weekly'] / (us_pop / 10000), 2)
+            df_subset['deaths_weekly_per10k'] = round(df_subset['deaths_weekly'] / (us_pop / 10000), 2)
+            # combined_df['cases_weekly_change_per10k'] = round(combined_df['cumulative_positive_tests'].diff(periods=-7) / (mn_pop / 10000), 2)
 
             # Now let's get the latest date for each county
             latest_dates = df_subset[['county', 'date']].groupby(['county']).agg({'date': 'max'})

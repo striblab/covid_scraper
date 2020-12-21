@@ -55,6 +55,6 @@ class Command(BaseCommand):
 
             if len(age_data) > 0:
                 age_msg_output = self.update_age_records(age_data)
-                # slack_latest(age_msg_output, '#robot-dojo')
+                slack_latest(age_msg_output, '#robot-dojo')
             else:
                 slack_latest('COVID scraper warning: No age records found.', '#robot-dojo')

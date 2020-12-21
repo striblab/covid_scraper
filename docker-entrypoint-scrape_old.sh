@@ -1,11 +1,20 @@
 #!/bin/bash
 EXPORTS_ROOT=covid_scraper/exports
+COUNTY_TESTS_FILENAME=mn_positive_tests_by_county
 COUNTY_LATEST_FILENAME=mn_counties_latest
 STATEWIDE_LATEST_FILENAME=mn_statewide_latest
+AGES_LATEST_FILENAME=mn_ages_latest
+# DEATH_AGES_LATEST_FILENAME=mn_death_ages_detailed_latest
 STATEWIDE_TIMESERIES_FILENAME=mn_statewide_timeseries
+# COUNTY_TIMESERIES_FILENAME=mn_county_timeseries
 COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
+NATIONAL_TIMESERIES_FILENAME=national_cases_deaths_by_county_timeseries
+NATIONAL_LATEST_FILENAME=national_cases_deaths_by_county_latest
+# MIDWEST_EMERGING_COUNTIES_PATH=midwest_emerging_counties
+# MIDWEST_EMERGING_COUNTIES_WIDE_PATH=midwest_emerging_counties_wide
 US_LATEST_EXPORT_PATH_NYT=us_latest_nyt
 US_LATEST_EXPORT_PATH_CTP=us_latest_ctp
+# STATES_LATEST_EXPORT_PATH=states_latest_ctp
 GLOBAL_LATEST_EXPORT_PATH=global_latest_ghu
 
 TZ=America/Chicago date
@@ -58,7 +67,6 @@ printf "\n\n"
 
 echo Dumping statewide timeseries...
 python manage.py dump_mn_statewide_timeseries
-
 echo Dumping county timeseries...
 python manage.py dump_mn_county_timeseries
 
@@ -79,6 +87,10 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=text/csv \
   --acl public-read
 
+  # aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TIMESERIES_FILENAME.csv \
+  # --content-type=text/csv \
+  # --acl public-read
+
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$STATEWIDE_TIMESERIES_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
@@ -94,6 +106,10 @@ if (("${LINE_COUNT[0]}" > 2)); then
   aws s3 cp $EXPORTS_ROOT/mn_county_timeseries.json s3://$S3_URL/json/mn_county_timeseries.json \
   --content-type=application/json \
   --acl public-read
+  #
+  # aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TIMESERIES_FILENAME-$download_datetime.csv \
+  # --content-type=text/csv \
+  # --acl public-read
 
 else
   echo "***** WARNING WARNING WARNING: The newest file is very short. Taking no further action. *****"
@@ -102,9 +118,32 @@ printf "\n"
 
 echo Updating age data...
 python manage.py update_mn_age_data
+# LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv))
+# if (("${LINE_COUNT[0]}" > 2)); then
+#   echo "***** Uploading latest age CSVs to S3. *****"
+#   download_datetime=$(date '+%Y%m%d%H%M%S');
+#
+#   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/$AGES_LATEST_FILENAME.csv \
+#   --content-type=text/csv \
+#   --acl public-read
+#
+#   aws s3 cp $EXPORTS_ROOT/$AGES_LATEST_FILENAME.json s3://$S3_URL/json/$AGES_LATEST_FILENAME.json \
+#   --content-type=application/json \
+#   --acl public-read
+#
+#   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$AGES_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$AGES_LATEST_FILENAME-$download_datetime.csv \
+#   --content-type=text/csv \
+#   --acl public-read
+# else
+#   echo "***** WARNING WARNING WARNING: The newest age file is very short. Taking no further action. *****"
+# fi
+# printf "\n\n"
 
 echo Updating recent deaths ...
 python manage.py update_mn_recent_deaths
+
+# echo "Updating zip code data ..."
+# python manage.py dump_zip_cases
 
 if (("${LINE_COUNT[0]}" > 2)); then
   echo "Updating Github..."
@@ -126,7 +165,6 @@ do
   --acl public-read
 done
 
-# TODO: Move to lambda
 # National death toll and cases
 python manage.py get_us_latest
 aws s3 cp $EXPORTS_ROOT/$US_LATEST_EXPORT_PATH_NYT.csv s3://$S3_URL/csv/$US_LATEST_EXPORT_PATH_NYT.csv \
@@ -137,8 +175,66 @@ aws s3 cp $EXPORTS_ROOT/$US_LATEST_EXPORT_PATH_CTP.csv s3://$S3_URL/csv/$US_LATE
 --content-type=text/csv \
 --acl public-read
 
+# python manage.py get_ctp_states
+# aws s3 cp $EXPORTS_ROOT/$STATES_LATEST_EXPORT_PATH.json s3://$S3_URL/json/$STATES_LATEST_EXPORT_PATH.json \
+# --content-type=application/json \
+# --acl public-read
+
 # Global death toll and cases
 python manage.py get_jhu_global
 aws s3 cp $EXPORTS_ROOT/$GLOBAL_LATEST_EXPORT_PATH.json s3://$S3_URL/json/$GLOBAL_LATEST_EXPORT_PATH.json \
 --content-type=application/json \
 --acl public-read
+
+############### NATIONAL FROM NYT ###############
+echo Updating NYT national numbers...
+python manage.py join_us_county_data
+
+# Only dump if csvs have many lines or were produced in last few minutes
+LINE_COUNT=($(wc -l $EXPORTS_ROOT/$NATIONAL_LATEST_FILENAME.csv))
+if (("${LINE_COUNT[0]}" > 2)); then
+  echo "***** Uploading latest national count CSVs to S3. *****"
+  download_datetime=$(date '+%Y%m%d%H%M%S');
+
+  aws s3 cp $EXPORTS_ROOT/$NATIONAL_LATEST_FILENAME.csv s3://$S3_URL/csv/$NATIONAL_LATEST_FILENAME.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/$NATIONAL_LATEST_FILENAME.json s3://$S3_URL/json/$NATIONAL_LATEST_FILENAME.json \
+  --content-type=application/json \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/$NATIONAL_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$NATIONAL_LATEST_FILENAME-$download_datetime.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  # aws s3 cp $EXPORTS_ROOT/$NATIONAL_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/$NATIONAL_TIMESERIES_FILENAME.csv \
+  # --content-type=text/csv \
+  # --acl public-read
+
+  # aws s3 cp $EXPORTS_ROOT/$NATIONAL_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$NATIONAL_TIMESERIES_FILENAME-$download_datetime.csv \
+  # --content-type=text/csv \
+  # --acl public-read
+
+  # aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_PATH.csv s3://$S3_URL/csv/$MIDWEST_EMERGING_COUNTIES_PATH.csv \
+  # --content-type=text/csv \
+  # --acl public-read
+  #
+  # aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_PATH.csv s3://$S3_URL/csv/versions/$MIDWEST_EMERGING_COUNTIES_PATH-$download_datetime.csv \
+  # --content-type=text/csv \
+  # --acl public-read
+  #
+  # aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH.csv s3://$S3_URL/csv/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH.csv \
+  # --content-type=text/csv \
+  # --acl public-read
+  #
+  # aws s3 cp $EXPORTS_ROOT/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH.csv s3://$S3_URL/csv/versions/$MIDWEST_EMERGING_COUNTIES_WIDE_PATH-$download_datetime.csv \
+  # --content-type=text/csv \
+  # --acl public-read
+
+else
+  echo "***** WARNING WARNING WARNING: The newest file is very short. Taking no further action. *****"
+fi
+printf "\n\n"
+
+############### TIMESERIES FROM MN ###############
