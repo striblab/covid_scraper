@@ -126,17 +126,7 @@ do
   --acl public-read
 done
 
-# TODO: Move to lambda
-# National death toll and cases
-python manage.py get_us_latest
-aws s3 cp $EXPORTS_ROOT/$US_LATEST_EXPORT_PATH_NYT.csv s3://$S3_URL/csv/$US_LATEST_EXPORT_PATH_NYT.csv \
---content-type=text/csv \
---acl public-read
-
-aws s3 cp $EXPORTS_ROOT/$US_LATEST_EXPORT_PATH_CTP.csv s3://$S3_URL/csv/$US_LATEST_EXPORT_PATH_CTP.csv \
---content-type=text/csv \
---acl public-read
-
+#TODO Move to lambda
 # Global death toll and cases
 python manage.py get_jhu_global
 aws s3 cp $EXPORTS_ROOT/$GLOBAL_LATEST_EXPORT_PATH.json s3://$S3_URL/json/$GLOBAL_LATEST_EXPORT_PATH.json \
