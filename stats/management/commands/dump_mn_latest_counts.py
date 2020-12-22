@@ -209,5 +209,5 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.dump_county_latest()
         self.dump_state_latest()
-        self.dump_ages_latest()
+        # self.dump_ages_latest()
         # self.dump_detailed_death_ages_latest()

@@ -4,9 +4,6 @@ COUNTY_LATEST_FILENAME=mn_counties_latest
 STATEWIDE_LATEST_FILENAME=mn_statewide_latest
 STATEWIDE_TIMESERIES_FILENAME=mn_statewide_timeseries
 COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
-US_LATEST_EXPORT_PATH_NYT=us_latest_nyt
-US_LATEST_EXPORT_PATH_CTP=us_latest_ctp
-GLOBAL_LATEST_EXPORT_PATH=global_latest_ghu
 
 TZ=America/Chicago date
 
@@ -125,10 +122,3 @@ do
   --content-type=text/csv \
   --acl public-read
 done
-
-#TODO Move to lambda
-# Global death toll and cases
-python manage.py get_jhu_global
-aws s3 cp $EXPORTS_ROOT/$GLOBAL_LATEST_EXPORT_PATH.json s3://$S3_URL/json/$GLOBAL_LATEST_EXPORT_PATH.json \
---content-type=application/json \
---acl public-read
