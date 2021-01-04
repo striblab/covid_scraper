@@ -7,17 +7,34 @@ COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
 
 TZ=America/Chicago date
 
-echo "Presyncing with Github..."
-python manage.py presync_github_repo
-
 echo Starting scrape...
 
-echo "Pushing copy of MDH html..."
+echo "Pushing copy of MDH situation html..."
 cache_datetime=$(TZ=America/Chicago date '+%Y-%m-%d_%H%M');
 curl -s --compressed https://www.health.state.mn.us/diseases/coronavirus/situation.html > $EXPORTS_ROOT/html/situation_$cache_datetime.html
 aws s3 cp $EXPORTS_ROOT/html/situation_$cache_datetime.html s3://$S3_URL/html/situation_$cache_datetime.html \
 --content-type=text/html \
 --acl public-read
+
+echo "Pushing copy of MDH vaccine distribution html..."
+curl -s --compressed https://www.health.state.mn.us/diseases/coronavirus/vaccine/stats/distrib.html > $EXPORTS_ROOT/html/distrib_$cache_datetime.html
+aws s3 cp $EXPORTS_ROOT/html/distrib_$cache_datetime.html s3://$S3_URL/html/distrib_$cache_datetime.html \
+--content-type=text/html \
+--acl public-read
+
+echo "Pushing copy of MDH vaccine administration html..."
+curl -s --compressed https://www.health.state.mn.us/diseases/coronavirus/vaccine/stats/admin.html > $EXPORTS_ROOT/html/admin_$cache_datetime.html
+aws s3 cp $EXPORTS_ROOT/html/admin_$cache_datetime.html s3://$S3_URL/html/admin_$cache_datetime.html \
+--content-type=text/html \
+--acl public-read
+
+echo "Pushing copy of CDC vaccine data json..."
+curl -s --compressed https://covid.cdc.gov/covid-data-tracker/COVIDData/getAjaxData?id=vaccination_data > $EXPORTS_ROOT/html/cdc_vac_$cache_datetime.json
+aws s3 cp $EXPORTS_ROOT/html/cdc_vac_$cache_datetime.json s3://$S3_URL/html/cdc_vac_$cache_datetime.json \
+--content-type=text/html \
+--acl public-read
+
+
 
 python manage.py update_mn_data
 ret=$?
@@ -29,8 +46,27 @@ fi
 echo Updating latest county counts...
 python manage.py update_mn_county_data
 
+echo "Presyncing with Github..."
+python manage.py presync_github_repo
+
 echo Dumping latest county counts...
 python manage.py dump_mn_latest_counts
+
+echo Dumping statewide timeseries...
+python manage.py dump_mn_statewide_timeseries
+
+echo Dumping county timeseries...
+python manage.py dump_mn_county_timeseries
+
+echo Updating age data...
+python manage.py update_mn_age_data
+
+echo Updating recent deaths ...
+python manage.py update_mn_recent_deaths
+
+echo "Updating Github..."
+python manage.py update_github_repo
+
 LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv))
 if (("${LINE_COUNT[0]}" > 1)); then
   echo "***** Uploading latest statewide and county count CSVs to S3. *****"
@@ -52,12 +88,6 @@ else
   echo "***** WARNING WARNING WARNING: The newest 'latest' file is very short. Taking no further action. *****"
 fi
 printf "\n\n"
-
-echo Dumping statewide timeseries...
-python manage.py dump_mn_statewide_timeseries
-
-echo Dumping county timeseries...
-python manage.py dump_mn_county_timeseries
 
 # Only dump if csvs have many lines or were produced in last few minutes
 LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_TIMESERIES_FILENAME.csv))
@@ -94,18 +124,6 @@ if (("${LINE_COUNT[0]}" > 2)); then
 
 else
   echo "***** WARNING WARNING WARNING: The newest file is very short. Taking no further action. *****"
-fi
-printf "\n"
-
-echo Updating age data...
-python manage.py update_mn_age_data
-
-echo Updating recent deaths ...
-python manage.py update_mn_recent_deaths
-
-if (("${LINE_COUNT[0]}" > 2)); then
-  echo "Updating Github..."
-  python manage.py update_github_repo
 fi
 printf "\n"
 

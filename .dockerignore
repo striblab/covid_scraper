@@ -5,7 +5,6 @@ covid_scraper/data
 !covid_scraper/data/county_pops_2019.csv
 
 covid_scraper/exports/
-!covid_scraper/exports/mn_covid_data
 
 covid_scraper/fixtures/
 covid_scraper/imports/
