@@ -185,3 +185,13 @@ class ZipCasesDate(models.Model):
     zip = models.CharField(max_length=7)
     cases_cumulative = models.IntegerField()
     import_date = models.DateTimeField(auto_now_add=True)
+
+
+class VacAdminTotalDate(models.Model):
+    ''' Loading and exporting for this is now handled by Lambda but this model db table is still used for that'''
+    data_date = models.DateField()
+    admin_total= models.IntegerField(null=True)
+    admin_pfizer= models.IntegerField(null=True)
+    admin_moderna= models.IntegerField(null=True)
+    admin_unknown= models.IntegerField(null=True)
+    update_date = models.DateTimeField(auto_now=True)
