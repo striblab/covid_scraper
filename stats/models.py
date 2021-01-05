@@ -190,8 +190,24 @@ class ZipCasesDate(models.Model):
 class VacAdminTotalDate(models.Model):
     ''' Loading and exporting for this is now handled by Lambda but this model db table is still used for that'''
     data_date = models.DateField()
-    admin_total= models.IntegerField(null=True)
-    admin_pfizer= models.IntegerField(null=True)
-    admin_moderna= models.IntegerField(null=True)
-    admin_unknown= models.IntegerField(null=True)
+    admin_total = models.IntegerField(null=True)
+    admin_pfizer = models.IntegerField(null=True)
+    admin_moderna = models.IntegerField(null=True)
+    admin_unknown = models.IntegerField(null=True)
+    update_date = models.DateTimeField(auto_now=True)
+
+
+class VacDistTotalDate(models.Model):
+    ''' Loading and exporting for this is now handled by Lambda but this model db table is still used for that'''
+    data_date = models.DateField()
+
+    allocated_total = models.IntegerField(null=True)
+    allocated_pfizer = models.IntegerField(null=True)
+    allocated_moderna = models.IntegerField(null=True)
+
+    distributed_pfizer = models.IntegerField(null=True)
+    distributed_moderna = models.IntegerField(null=True)
+
+    providers_received_vac = models.IntegerField(null=True)
+
     update_date = models.DateTimeField(auto_now=True)
