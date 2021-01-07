@@ -24,7 +24,16 @@ class Command(BaseCommand):
         return False
 
     def parse_mdh_date(self, input_str, today):
-        return datetime.datetime.strptime('{}/{}'.format(input_str, today.year), '%m/%d/%Y')
+        date_split = input_str.split('/')
+        month = date_split[0]
+        day = date_split[1]
+        fake_date = datetime.date(2021, int(month), int(day))
+        if fake_date > today:
+            real_date = datetime.date(2020, int(month), int(day))
+        else:
+            real_date = datetime.date(2021, int(month), int(day))
+        return real_date
+        # return datetime.datetime.strptime('{}/{}'.format(input_str, today.year), '%m/%d/%Y')
 
     def change_sign(self, input_int):
         optional_plus = ''
@@ -73,13 +82,14 @@ class Command(BaseCommand):
                     sample_date = None
                 else:
                     sample_date = self.parse_mdh_date(c['Specimen collection date'], today)
-
                 new_pcr_tests = parse_comma_int(c['Confirmed cases (PCR positive)'])
                 new_antigen_tests = parse_comma_int(c['Probable cases (Antigen positive)'])
+
                 if new_antigen_tests:  # Handle old dates
                     new_cases = int(new_pcr_tests) + int(new_antigen_tests)
                 else:
                     new_cases = new_pcr_tests
+                # print(sample_date, new_pcr_tests, new_antigen_tests, new_cases)
 
                 co = StatewideCasesBySampleDate(
                     sample_date=sample_date,
