@@ -12,25 +12,25 @@ echo Starting scrape...
 echo "Pushing copy of MDH situation html..."
 cache_datetime=$(TZ=America/Chicago date '+%Y-%m-%d_%H%M');
 curl -s --compressed https://www.health.state.mn.us/diseases/coronavirus/situation.html > $EXPORTS_ROOT/html/situation_$cache_datetime.html
-aws s3 cp $EXPORTS_ROOT/html/situation_$cache_datetime.html s3://$S3_URL/html/situation_$cache_datetime.html \
+aws s3 cp $EXPORTS_ROOT/html/situation_$cache_datetime.html s3://$S3_URL/raw/html/situation_$cache_datetime.html \
 --content-type=text/html \
 --acl public-read
 
-echo "Pushing copy of MDH vaccine distribution html..."
-curl -s --compressed https://www.health.state.mn.us/diseases/coronavirus/vaccine/stats/distrib.html > $EXPORTS_ROOT/html/distrib_$cache_datetime.html
-aws s3 cp $EXPORTS_ROOT/html/distrib_$cache_datetime.html s3://$S3_URL/html/distrib_$cache_datetime.html \
---content-type=text/html \
---acl public-read
-
-echo "Pushing copy of MDH vaccine administration html..."
-curl -s --compressed https://www.health.state.mn.us/diseases/coronavirus/vaccine/stats/admin.html > $EXPORTS_ROOT/html/admin_$cache_datetime.html
-aws s3 cp $EXPORTS_ROOT/html/admin_$cache_datetime.html s3://$S3_URL/html/admin_$cache_datetime.html \
---content-type=text/html \
---acl public-read
+# echo "Pushing copy of MDH vaccine distribution html..."
+# curl -s --compressed https://www.health.state.mn.us/diseases/coronavirus/vaccine/stats/distrib.html > $EXPORTS_ROOT/html/distrib_$cache_datetime.html
+# aws s3 cp $EXPORTS_ROOT/html/distrib_$cache_datetime.html s3://$S3_URL/html/distrib_$cache_datetime.html \
+# --content-type=text/html \
+# --acl public-read
+#
+# echo "Pushing copy of MDH vaccine administration html..."
+# curl -s --compressed https://www.health.state.mn.us/diseases/coronavirus/vaccine/stats/admin.html > $EXPORTS_ROOT/html/admin_$cache_datetime.html
+# aws s3 cp $EXPORTS_ROOT/html/admin_$cache_datetime.html s3://$S3_URL/html/admin_$cache_datetime.html \
+# --content-type=text/html \
+# --acl public-read
 
 echo "Pushing copy of CDC vaccine data json..."
 curl -s --compressed https://covid.cdc.gov/covid-data-tracker/COVIDData/getAjaxData?id=vaccination_data > $EXPORTS_ROOT/html/cdc_vac_$cache_datetime.json
-aws s3 cp $EXPORTS_ROOT/html/cdc_vac_$cache_datetime.json s3://$S3_URL/html/cdc_vac_$cache_datetime.json \
+aws s3 cp $EXPORTS_ROOT/html/cdc_vac_$cache_datetime.json s3://$S3_URL/raw/html/cdc_vac_$cache_datetime.json \
 --content-type=text/html \
 --acl public-read
 
@@ -46,8 +46,8 @@ fi
 echo Updating latest county counts...
 python manage.py update_mn_county_data
 
-echo "Presyncing with Github..."
-python manage.py presync_github_repo
+# echo "Presyncing with Github..."
+# python manage.py presync_github_repo
 
 echo Dumping latest county counts...
 python manage.py dump_mn_latest_counts
@@ -64,23 +64,27 @@ python manage.py update_mn_age_data
 echo Updating recent deaths ...
 python manage.py update_mn_recent_deaths
 
-echo "Updating Github..."
-python manage.py update_github_repo
+# echo "Updating Github..."
+# python manage.py update_github_repo
 
 LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv))
 if (("${LINE_COUNT[0]}" > 1)); then
   echo "***** Uploading latest statewide and county count CSVs to S3. *****"
   download_datetime=$(date '+%Y%m%d%H%M%S');
 
-  aws s3 cp $EXPORTS_ROOT/$COUNTY_LATEST_FILENAME.json s3://$S3_URL/json/$COUNTY_LATEST_FILENAME.json \
+  aws s3 cp $EXPORTS_ROOT/$COUNTY_LATEST_FILENAME.json s3://$S3_URL/latest/json/$COUNTY_LATEST_FILENAME.json \
   --content-type=application/json \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv s3://$S3_URL/csv/$STATEWIDE_LATEST_FILENAME.csv \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv s3://$S3_URL/latest/csv/$STATEWIDE_LATEST_FILENAME.csv \
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv s3://$S3_URL/csv/versions/$STATEWIDE_LATEST_FILENAME-$download_datetime.csv \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv s3://$S3_URL/github/$STATEWIDE_LATEST_FILENAME.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_LATEST_FILENAME.csv s3://$S3_URL/versions/csv/$STATEWIDE_LATEST_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 
@@ -94,31 +98,39 @@ LINE_COUNT=($(wc -l $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_TIMESERIES_FILENAME.c
 if (("${LINE_COUNT[0]}" > 2)); then
   echo "***** Uploading timeseries CSVs to S3. *****"
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/$STATEWIDE_TIMESERIES_FILENAME.csv \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_TIMESERIES_FILENAME.csv s3://$S3_URL/latest/csv/$STATEWIDE_TIMESERIES_FILENAME.csv \
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/$STATEWIDE_TIMESERIES_FILENAME.json s3://$S3_URL/json/$STATEWIDE_TIMESERIES_FILENAME.json \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_TIMESERIES_FILENAME.csv s3://$S3_URL/github/$STATEWIDE_TIMESERIES_FILENAME.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/$STATEWIDE_TIMESERIES_FILENAME.json s3://$S3_URL/latest/json/$STATEWIDE_TIMESERIES_FILENAME.json \
   --content-type=application/json \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/csv/$COUNTY_TIMESERIES_TALL_FILENAME.csv \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/latest/csv/$COUNTY_TIMESERIES_TALL_FILENAME.csv \
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_TIMESERIES_FILENAME.csv s3://$S3_URL/csv/versions/$STATEWIDE_TIMESERIES_FILENAME-$download_datetime.csv \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/github/$COUNTY_TIMESERIES_TALL_FILENAME.csv \
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/$STATEWIDE_TIMESERIES_FILENAME.json s3://$S3_URL/json/versions/$STATEWIDE_TIMESERIES_FILENAME-$download_datetime.json \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$STATEWIDE_TIMESERIES_FILENAME.csv s3://$S3_URL/versions/csv/$STATEWIDE_TIMESERIES_FILENAME-$download_datetime.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/$STATEWIDE_TIMESERIES_FILENAME.json s3://$S3_URL/versions/json/$STATEWIDE_TIMESERIES_FILENAME-$download_datetime.json \
   --content-type=application/json \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/csv/versions/$COUNTY_TIMESERIES_TALL_FILENAME-$download_datetime.csv \
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/versions/csv/$COUNTY_TIMESERIES_TALL_FILENAME-$download_datetime.csv \
   --content-type=text/csv \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_county_timeseries.json s3://$S3_URL/json/mn_county_timeseries.json \
+  aws s3 cp $EXPORTS_ROOT/mn_county_timeseries.json s3://$S3_URL/latest/json/mn_county_timeseries.json \
   --content-type=application/json \
   --acl public-read
 
