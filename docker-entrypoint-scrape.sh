@@ -4,6 +4,7 @@ COUNTY_LATEST_FILENAME=mn_counties_latest
 STATEWIDE_LATEST_FILENAME=mn_statewide_latest
 STATEWIDE_TIMESERIES_FILENAME=mn_statewide_timeseries
 COUNTY_TIMESERIES_TALL_FILENAME=mn_county_timeseries_tall
+COUNTY_TIMESERIES_ALL_FILENAME=mn_county_timeseries_all_counties
 
 TZ=America/Chicago date
 
@@ -115,6 +116,10 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --acl public-read
 
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/github/$COUNTY_TIMESERIES_TALL_FILENAME.csv \
+  --content-type=text/csv \
+  --acl public-read
+
+  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_ALL_FILENAME.csv s3://$S3_URL/github/$COUNTY_TIMESERIES_ALL_FILENAME.csv \
   --content-type=text/csv \
   --acl public-read
 
