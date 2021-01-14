@@ -194,6 +194,8 @@ class VacAdminTotalDate(models.Model):
     admin_pfizer = models.IntegerField(null=True)
     admin_moderna = models.IntegerField(null=True)
     admin_unknown = models.IntegerField(null=True)
+
+    admin_people_total = models.IntegerField(null=True)
     update_date = models.DateTimeField(auto_now=True)
 
 
@@ -210,4 +212,11 @@ class VacDistTotalDate(models.Model):
 
     providers_received_vac = models.IntegerField(null=True)
 
+    update_date = models.DateTimeField(auto_now=True)
+
+
+class VacCountyDate(models.Model):
+    county = models.CharField(max_length=50, db_index=True)
+    data_date = models.DateField(db_index=True)
+    people_admin_total = models.IntegerField(null=True)
     update_date = models.DateTimeField(auto_now=True)
