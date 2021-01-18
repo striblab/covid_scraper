@@ -195,6 +195,14 @@ class VacAdminTotalDate(models.Model):
     admin_moderna = models.IntegerField(null=True)
     admin_unknown = models.IntegerField(null=True)
 
+    shipped_pfizer_total = models.IntegerField(null=True)
+    shipped_moderna_total = models.IntegerField(null=True)
+    shipped_pfizer_mn_providers = models.IntegerField(null=True)
+    shipped_moderna_mn_providers = models.IntegerField(null=True)
+    shipped_pfizer_cdc_ltc = models.IntegerField(null=True)
+    shipped_moderna_cdc_ltc = models.IntegerField(null=True)
+    providers = models.IntegerField(null=True)
+
     admin_people_total = models.IntegerField(null=True)
     update_date = models.DateTimeField(auto_now=True)
 
@@ -219,4 +227,11 @@ class VacCountyDate(models.Model):
     county = models.CharField(max_length=50, db_index=True)
     data_date = models.DateField(db_index=True)
     people_admin_total = models.IntegerField(null=True)
+    update_date = models.DateTimeField(auto_now=True)
+
+
+class VacGenderDate(models.Model):
+    gender = models.CharField(max_length=25, db_index=True)
+    data_date = models.DateField(db_index=True)
+    people_admin = models.IntegerField(null=True)
     update_date = models.DateTimeField(auto_now=True)
