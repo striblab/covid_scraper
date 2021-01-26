@@ -189,7 +189,8 @@ class ZipCasesDate(models.Model):
 
 class VacAdminTotalDate(models.Model):
     ''' Loading and exporting for this is now handled by Lambda but this model db table is still used for that'''
-    data_date = models.DateField()
+    released_date = models.DateField()
+    asof_date = models.DateField(null=True)
     admin_total = models.IntegerField(null=True)
     admin_pfizer = models.IntegerField(null=True)
     admin_moderna = models.IntegerField(null=True)
@@ -209,7 +210,8 @@ class VacAdminTotalDate(models.Model):
 
 class VacDistTotalDate(models.Model):
     ''' Loading and exporting for this is now handled by Lambda but this model db table is still used for that'''
-    data_date = models.DateField()
+    released_date = models.DateField()
+    asof_date = models.DateField(null=True)
 
     allocated_total = models.IntegerField(null=True)
     allocated_pfizer = models.IntegerField(null=True)
@@ -225,13 +227,15 @@ class VacDistTotalDate(models.Model):
 
 class VacCountyDate(models.Model):
     county = models.CharField(max_length=50, db_index=True)
-    data_date = models.DateField(db_index=True)
+    released_date = models.DateField(db_index=True)
+    asof_date = models.DateField(null=True)
     people_admin_total = models.IntegerField(null=True)
     update_date = models.DateTimeField(auto_now=True)
 
 
 class VacGenderDate(models.Model):
     gender = models.CharField(max_length=25, db_index=True)
-    data_date = models.DateField(db_index=True)
+    released_date = models.DateField(db_index=True)
+    asof_date = models.DateField(null=True)
     people_admin = models.IntegerField(null=True)
     update_date = models.DateTimeField(auto_now=True)
