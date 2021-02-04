@@ -23,7 +23,7 @@ class AgeGroupPop(models.Model):
 
 
 class Death(models.Model):
-    scrape_date = models.DateField()
+    scrape_date = models.DateField(db_index=True)
     age_group = models.CharField(max_length=100)
     actual_age = models.IntegerField(null=True)
     county = models.ForeignKey(County, null=True, on_delete=models.CASCADE)
@@ -34,7 +34,7 @@ class Death(models.Model):
 
 
 class StatewideAgeDate(models.Model):
-    scrape_date = models.DateField()
+    scrape_date = models.DateField(db_index=True)
     age_group = models.CharField(max_length=100)
     age_min = models.IntegerField(null=True)
     age_max = models.IntegerField(null=True)
@@ -59,7 +59,7 @@ class StatewideAgeDate(models.Model):
 
 class StatewideCasesBySampleDate(models.Model):
     '''used for timeseries and charts'''
-    sample_date = models.DateField(null=True)
+    sample_date = models.DateField(null=True, db_index=True)
     new_cases = models.IntegerField(default=0, null=True)
     total_cases = models.IntegerField(default=0, null=True)
 
@@ -69,34 +69,34 @@ class StatewideCasesBySampleDate(models.Model):
     total_pcr_tests = models.IntegerField(default=0, null=True)
     total_antigen_tests = models.IntegerField(default=0, null=True)
 
-    update_date = models.DateField(null=True)  # The day MDH said this data was last updated
-    scrape_date = models.DateField()
+    update_date = models.DateField(null=True, db_index=True)  # The day MDH said this data was last updated
+    scrape_date = models.DateField(db_index=True)
 
 
 class StatewideHospitalizationsDate(models.Model):
-    reported_date = models.DateField(null=True)
+    reported_date = models.DateField(null=True, db_index=True)
     new_hosp_admissions = models.IntegerField(default=0, null=True)
     # new_non_icu_admissions_rolling = models.FloatField(default=0, null=True)
     new_icu_admissions = models.IntegerField(default=0, null=True)
     # new_icu_admissions_rolling = models.FloatField(default=0, null=True)
     total_hospitalizations = models.IntegerField(default=0, null=True)
     total_icu_admissions = models.IntegerField(default=0, null=True)
-    update_date = models.DateField(null=True)  # The day MDH said this data was last updated
-    scrape_date = models.DateField()
+    update_date = models.DateField(null=True, db_index=True)  # The day MDH said this data was last updated
+    scrape_date = models.DateField(db_index=True)
 
 
 class StatewideDeathsDate(models.Model):
-    reported_date = models.DateField(null=True)
+    reported_date = models.DateField(null=True, db_index=True)
     new_deaths = models.IntegerField(default=0, null=True)
     new_deaths_rolling = models.FloatField(default=0, null=True)  # No longer calculated at DB level
     total_deaths = models.IntegerField(default=0, null=True)
-    update_date = models.DateField(null=True)  # The day MDH said this data was last updated
-    scrape_date = models.DateField()
+    update_date = models.DateField(null=True, db_index=True)  # The day MDH said this data was last updated
+    scrape_date = models.DateField(db_index=True)
 
 
 class StatewideTestsDate(models.Model):
     '''used for timeseries and charts'''
-    reported_date = models.DateField(null=True)
+    reported_date = models.DateField(null=True, db_index=True)
     new_state_tests = models.IntegerField(default=0, null=True)
     new_external_tests = models.IntegerField(default=0, null=True)
 
@@ -109,8 +109,8 @@ class StatewideTestsDate(models.Model):
     new_tests = models.IntegerField(default=0, null=True)
     new_tests_rolling = models.FloatField(default=0, null=True)
     total_tests = models.IntegerField(default=0, null=True)
-    update_date = models.DateField(null=True)  # The day MDH said this data was last updated
-    scrape_date = models.DateField()
+    update_date = models.DateField(null=True, db_index=True)  # The day MDH said this data was last updated
+    scrape_date = models.DateField(db_index=True)
 
 
 class StatewideTotalDate(models.Model):
@@ -139,8 +139,8 @@ class StatewideTotalDate(models.Model):
     cumulative_statewide_recoveries = models.IntegerField(default=0, null=True)
     cumulative_confirmed_statewide_deaths = models.IntegerField(default=0, null=True)
     cumulative_probable_statewide_deaths = models.IntegerField(default=0, null=True)
-    update_date = models.DateField(null=True)  # The day MDH said this data was last updated
-    scrape_date = models.DateField()
+    update_date = models.DateField(null=True, db_index=True)  # The day MDH said this data was last updated
+    scrape_date = models.DateField(db_index=True)
     last_update = models.DateTimeField(auto_now=True)
 
     def backfill_new_deaths(self):
@@ -171,7 +171,7 @@ class CountyTestDate(models.Model):
     daily_deaths = models.IntegerField(default=0, null=True)  # Deaths on this date
     cumulative_deaths = models.IntegerField(default=0, null=True)  # Deaths by this date
     update_date = models.DateField(null=True)  # The day MDH said this data was last updated
-    scrape_date = models.DateField()
+    scrape_date = models.DateField(db_index=True)
 
     last_scrape = models.DateTimeField(auto_now=True)
 
@@ -181,7 +181,7 @@ class CountyTestDate(models.Model):
 
 class ZipCasesDate(models.Model):
     ''' Loading and exporting for this is now handled by Lambda but this model db table is still used for that'''
-    data_date = models.DateField()
+    data_date = models.DateField(db_index=True)
     zip = models.CharField(max_length=7)
     cases_cumulative = models.IntegerField()
     import_date = models.DateTimeField(auto_now_add=True)
@@ -189,8 +189,8 @@ class ZipCasesDate(models.Model):
 
 class VacAdminTotalDate(models.Model):
     ''' Loading and exporting for this is now handled by Lambda but this model db table is still used for that'''
-    released_date = models.DateField()
-    asof_date = models.DateField(null=True)
+    released_date = models.DateField(db_index=True)
+    asof_date = models.DateField(null=True, db_index=True)
     admin_total = models.IntegerField(null=True)
     admin_pfizer = models.IntegerField(null=True)
     admin_moderna = models.IntegerField(null=True)
@@ -210,8 +210,8 @@ class VacAdminTotalDate(models.Model):
 
 class VacDistTotalDate(models.Model):
     ''' Loading and exporting for this is now handled by Lambda but this model db table is still used for that'''
-    released_date = models.DateField()
-    asof_date = models.DateField(null=True)
+    released_date = models.DateField(db_index=True)
+    asof_date = models.DateField(null=True, db_index=True)
 
     allocated_total = models.IntegerField(null=True)
     allocated_pfizer = models.IntegerField(null=True)
@@ -228,7 +228,7 @@ class VacDistTotalDate(models.Model):
 class VacCountyDate(models.Model):
     county = models.CharField(max_length=50, db_index=True)
     released_date = models.DateField(db_index=True)
-    asof_date = models.DateField(null=True)
+    asof_date = models.DateField(null=True, db_index=True)
     people_admin_total = models.IntegerField(null=True)
     update_date = models.DateTimeField(auto_now=True)
 
@@ -236,6 +236,6 @@ class VacCountyDate(models.Model):
 class VacGenderDate(models.Model):
     gender = models.CharField(max_length=25, db_index=True)
     released_date = models.DateField(db_index=True)
-    asof_date = models.DateField(null=True)
+    asof_date = models.DateField(null=True, db_index=True)
     people_admin = models.IntegerField(null=True)
     update_date = models.DateTimeField(auto_now=True)
