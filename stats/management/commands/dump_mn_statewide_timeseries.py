@@ -17,12 +17,6 @@ class Command(BaseCommand):
         print("Gathering cases by sample date ...")
         # Cases: Get max scrape date for each sample date
         cases_timeseries_values = {}
-        # cases_reported_dates = StatewideCasesBySampleDate.objects.exclude(sample_date=None).values_list('sample_date', flat=True).distinct()
-        # for t in cases_reported_dates:
-        #     latest_record = StatewideCasesBySampleDate.objects.filter(sample_date=t).values().latest('scrape_date')
-        #     cases_timeseries_values[t] = latest_record
-
-        # much faster!
         max_date = StatewideCasesBySampleDate.objects.aggregate(Max('scrape_date'))['scrape_date__max']
         cases_by_sample_date = StatewideCasesBySampleDate.objects.filter(scrape_date=max_date).values().order_by('sample_date')
         for sd in cases_by_sample_date:
@@ -32,11 +26,6 @@ class Command(BaseCommand):
         print("Gathering tests ...")
         # Tests: Get max scrape date for each real date
         tests_timeseries_values = {}
-        # tests_reported_dates = StatewideTestsDate.objects.all().values_list('reported_date', flat=True).distinct()
-        # for t in tests_reported_dates:
-        #     latest_record = StatewideTestsDate.objects.filter(reported_date=t).values().latest('scrape_date')
-        #     tests_timeseries_values[t] = latest_record
-
         max_date = StatewideTestsDate.objects.aggregate(Max('scrape_date'))['scrape_date__max']
         tests_by_reported_date = StatewideTestsDate.objects.filter(scrape_date=max_date).values().order_by('reported_date')
         for sd in tests_by_reported_date:
@@ -45,11 +34,6 @@ class Command(BaseCommand):
         print("Gathering new hospitalizations ...")
         # Hospitalizations: Get max scrape date for each real date
         hosp_timeseries_values = {}
-        # hosp_reported_dates = StatewideHospitalizationsDate.objects.all().values_list('reported_date', flat=True).distinct()
-        # for t in hosp_reported_dates:
-        #     latest_record = StatewideHospitalizationsDate.objects.filter(reported_date=t).values().latest('scrape_date')
-        #     hosp_timeseries_values[t] = latest_record
-
         max_date = StatewideHospitalizationsDate.objects.aggregate(Max('scrape_date'))['scrape_date__max']
         hosp_by_reported_date = StatewideHospitalizationsDate.objects.filter(scrape_date=max_date).values().order_by('reported_date')
         for sd in hosp_by_reported_date:
@@ -58,11 +42,6 @@ class Command(BaseCommand):
         print("Gathering deaths ...")
         # Deaths: Get max scrape date for each real date
         deaths_timeseries_values = {}
-        # deaths_reported_dates = StatewideDeathsDate.objects.all().values_list('reported_date', flat=True).distinct()
-        # for t in deaths_reported_dates:
-        #     latest_record = StatewideDeathsDate.objects.filter(reported_date=t).values().latest('scrape_date')
-        #     deaths_timeseries_values[t] = latest_record
-
         max_date = StatewideDeathsDate.objects.aggregate(Max('scrape_date'))['scrape_date__max']
         deaths_by_reported_date = StatewideDeathsDate.objects.filter(scrape_date=max_date).values().order_by('reported_date')
         for sd in deaths_by_reported_date:
