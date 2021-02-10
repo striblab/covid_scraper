@@ -205,6 +205,7 @@ class VacAdminTotalDate(models.Model):
     providers = models.IntegerField(null=True)
 
     admin_people_total = models.IntegerField(null=True)
+    admin_people_completed_total = models.IntegerField(null=True)
     update_date = models.DateTimeField(auto_now=True)
 
 
@@ -230,6 +231,7 @@ class VacCountyDate(models.Model):
     released_date = models.DateField(db_index=True)
     asof_date = models.DateField(null=True, db_index=True)
     people_admin_total = models.IntegerField(null=True)
+    people_admin_completed = models.IntegerField(null=True)
     update_date = models.DateTimeField(auto_now=True)
 
 
@@ -238,4 +240,5 @@ class VacGenderDate(models.Model):
     released_date = models.DateField(db_index=True)
     asof_date = models.DateField(null=True, db_index=True)
     people_admin = models.IntegerField(null=True)
+    people_admin_completed = models.IntegerField(null=True)
     update_date = models.DateTimeField(auto_now=True)

@@ -27,12 +27,14 @@ class Command(BaseCommand):
         date_split = input_str.split('/')
         month = date_split[0]
         day = date_split[1]
-        fake_date = datetime.date(2021, int(month), int(day))
-        if fake_date > today:
-            real_date = datetime.date(2020, int(month), int(day))
-        else:
-            real_date = datetime.date(2021, int(month), int(day))
-        return real_date
+        year = "20" + date_split[2]
+        return datetime.date(int(year), int(month), int(day))
+        # fake_date = datetime.date(2021, int(month), int(day))
+        # if fake_date > today:
+        #     real_date = datetime.date(2020, int(month), int(day))
+        # else:
+        #     real_date = datetime.date(2021, int(month), int(day))
+        # return real_date
         # return datetime.datetime.strptime('{}/{}'.format(input_str, today.year), '%m/%d/%Y')
 
     def change_sign(self, input_int):
@@ -182,8 +184,8 @@ class Command(BaseCommand):
             for c in hosp_timeseries:
                 if c['Date'] == 'Unknown/missing':
                     reported_date = None
-                elif c['Date'] == 'Admitted on or before 3/5':
-                    reported_date = self.parse_mdh_date('3/5', today)
+                elif c['Date'] == 'Admitted on or before 3/5/20':
+                    reported_date = self.parse_mdh_date('3/5/20', today)
                 else:
                     reported_date = self.parse_mdh_date(c['Date'], today)
 
