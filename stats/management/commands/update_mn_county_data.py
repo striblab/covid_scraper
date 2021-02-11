@@ -34,6 +34,7 @@ class Command(BaseCommand):
 
         today = datetime.date.today()
 
+        bool_any_changes = False  # Used to decide on Slack alert
         for observation in county_data:
             previous_county_observation = CountyTestDate.objects.filter(county__name__iexact=observation['county'].strip(), scrape_date__lt=today).order_by('-scrape_date').first()
             if previous_county_observation:
@@ -66,6 +67,7 @@ class Command(BaseCommand):
             except ObjectDoesNotExist:
                 try:
                     print('Creating 1st {} County record of day: {}'.format(observation['county'], observation['cumulative_count']))
+                    bool_any_changes = True
                     county_observation = CountyTestDate(
                         county=County.objects.get(name__iexact=observation['county'].strip()),
                         scrape_date=today,
@@ -83,44 +85,26 @@ class Command(BaseCommand):
                     slack_latest('SCRAPER ERROR: {}'.format(e), '#robot-dojo')
                     raise
 
-            # # Slack lastest results
-            # case_change_text = ''
-            # if county_observation.daily_total_cases != 0:
-            #     optional_plus = '+'
-            #     if county_observation.daily_total_cases < 0:
-            #         optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE *** '
-            #     elif county_observation.daily_total_cases == county_observation.cumulative_count:
-            #         optional_plus = ':heavy_plus_sign: NEW COUNTY '
-            #
-            #     case_change_text = ' (:point_right: {}{} today)'.format(optional_plus, county_observation.daily_total_cases)
-            #
-            # deaths_change_text = ''
-            # if int(county_observation.cumulative_deaths) > 0:
-            #     deaths_change_text = ', {} death'.format(county_observation.cumulative_deaths)
-            #     if int(county_observation.cumulative_deaths) > 1:
-            #         deaths_change_text += 's' # pluralize
-            #
-            #     if county_observation.daily_deaths != 0:
-            #         optional_plus = '+'
-            #         if county_observation.daily_deaths < 0:
-            #             optional_plus = ':rotating_light::rotating_light: ALERT NEGATIVE '
-            #         elif county_observation.daily_deaths == county_observation.cumulative_deaths:
-            #             optional_plus = ':heavy_plus_sign: NEW COUNTY '
-            #
-            #         deaths_change_text += ' (:point_right: {}{} today)'.format(optional_plus, county_observation.daily_deaths)
-            #
-            # # print('{}: {}{}\n'.format(county_observation.county.name, county_observation.cumulative_count, case_change_text))
-            # msg_output = msg_output + '{}: {} cases{}{}\n'.format(
-            #     county_observation.county.name,
-            #     f'{county_observation.cumulative_count:,}',
-            #     case_change_text,
-            #     deaths_change_text
-            # )
+        return bool_any_changes
 
-        # final_msg = 'COVID scraper county-by-county results: \n\n' + msg_output
-        # print(final_msg)
+    def change_sign(self, input_int):
+        optional_plus = ''
+        if not input_int:
+            return 0
+        elif input_int != 0:
+            optional_plus = '+'
+            if input_int < 0:
+                optional_plus = ':rotating_light: '
+        return '{}{}'.format(optional_plus, f'{input_int:,}')
 
-        return msg_output
+    def slack_county_of_interest(self, record, channel):
+        msg = '*{} County, {}*\n'.format(record.county.name, record.scrape_date.strftime('%B %d, %Y'))
+        msg += f'*{record.cumulative_count:,}* cases total (change of *{self.change_sign(record.daily_total_cases)}* today)\n'
+        msg += f'*{record.cumulative_deaths:,}* deaths total (change of *{self.change_sign(record.daily_deaths)}* today)\n'
+        msg += '\n\n\n'
+
+        slack_latest(msg, channel)
+        # slack_latest(msg, '#robot-dojo')
 
     def handle(self, *args, **options):
         html = get_situation_page_content()
@@ -136,8 +120,14 @@ class Command(BaseCommand):
                 county_data = self.get_county_data(soup)
 
                 if len(county_data) > 0:
-                    county_msg_output = self.update_county_records(county_data, update_date)
-                    # slack_latest(county_msg_output, '#robot-dojo')
+                    bool_any_changes = self.update_county_records(county_data, update_date)
+
+                    if bool_any_changes or 1 == 1:
+                        slack_latest('*COVID daily update*\n\n', '#duluth_live')
+                        for county in ['St. Louis', 'Carlton', 'Itasca', 'Lake', 'Cook']:
+                            record = CountyTestDate.objects.get(county__name=county, scrape_date=datetime.date.today())
+                            self.slack_county_of_interest(record, '#duluth_live')
+
                 else:
                     slack_latest('COVID scraper warning: No county records found.', '#robot-dojo')
             else:

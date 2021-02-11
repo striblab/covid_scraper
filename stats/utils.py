@@ -56,6 +56,7 @@ def slack_latest(text, channel):
         '#covid-tracking': settings.SLACK_WEBHOOK_ENDPOINT_COVID_TRACKING,
         '#virus': settings.SLACK_WEBHOOK_ENDPOINT_VIRUS,
         '#robot-dojo': settings.SLACK_WEBHOOK_ENDPOINT_DOJO,
+        '#duluth_live': settings.SLACK_WEBHOOK_ENDPOINT_DULUTH
     }
     # endpoint = settings.SLACK_WEBHOOK_ENDPOINT
     headers = {

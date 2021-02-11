@@ -12,7 +12,8 @@ from stats.utils import get_matching_s3_cached_html, find_filename_date_matchs, 
 class Command(BaseCommand):
     help = 'Get daily figures for cases and deaths by race/ethnicity'
 
-    S3_HTML_BUCKET = 'static.startribune.com'
+    # S3_HTML_BUCKET = 'static.startribune.com'
+    S3_HTML_BUCKET = 'strib-covid-data'
     S3_HTML_PATH = settings.S3_EXPORT_PREFIX
 
     def parse_comma_int(self, input_str):
