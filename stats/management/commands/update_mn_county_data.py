@@ -122,11 +122,16 @@ class Command(BaseCommand):
                 if len(county_data) > 0:
                     bool_any_changes = self.update_county_records(county_data, update_date)
 
-                    if bool_any_changes or 1 == 1:
+                    if bool_any_changes:
                         slack_latest('*COVID daily update*\n\n', '#duluth_live')
                         for county in ['St. Louis', 'Carlton', 'Itasca', 'Lake', 'Cook']:
                             record = CountyTestDate.objects.get(county__name=county, scrape_date=datetime.date.today())
                             self.slack_county_of_interest(record, '#duluth_live')
+
+                        slack_latest('*COVID daily update*\n\n', '#stcloud_live')
+                        for county in ['Stearns', 'Benton', 'Sherburne']:
+                            record = CountyTestDate.objects.get(county__name=county, scrape_date=datetime.date.today())
+                            self.slack_county_of_interest(record, '#stcloud_live')
 
                 else:
                     slack_latest('COVID scraper warning: No county records found.', '#robot-dojo')

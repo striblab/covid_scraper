@@ -56,9 +56,10 @@ def slack_latest(text, channel):
         '#covid-tracking': settings.SLACK_WEBHOOK_ENDPOINT_COVID_TRACKING,
         '#virus': settings.SLACK_WEBHOOK_ENDPOINT_VIRUS,
         '#robot-dojo': settings.SLACK_WEBHOOK_ENDPOINT_DOJO,
-        '#duluth_live': settings.SLACK_WEBHOOK_ENDPOINT_DULUTH
+        '#duluth_live': settings.SLACK_WEBHOOK_ENDPOINT_DULUTH,
+        '#stcloud_live': settings.SLACK_WEBHOOK_ENDPOINT_STCLOUD
     }
-    # endpoint = settings.SLACK_WEBHOOK_ENDPOINT
+
     headers = {
         'Content-Type': 'application/json; charset=utf-8',
     }
@@ -97,6 +98,7 @@ def slack_latest(text, channel):
         'blocks': blocks_formatted_list
     }
 
+    print(endpoints[channel])
     print(payload)
     r = requests.post(endpoints[channel], data=json.dumps(payload), headers=headers)
 
