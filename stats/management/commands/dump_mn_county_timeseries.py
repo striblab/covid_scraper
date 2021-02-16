@@ -74,7 +74,7 @@ class Command(BaseCommand):
 
     def dump_tall_timeseries(self):
         print('Dumping tall county timeseries...')
-        fieldnames = ['date', 'county', 'daily_cases', 'daily_cases_per_1k', 'cumulative_cases', 'cases_per_1k', 'daily_deaths', 'cumulative_deaths', 'cases_rolling',
+        fieldnames = ['date', 'county', 'fips', 'daily_cases', 'daily_cases_per_1k', 'cumulative_cases', 'cases_per_1k', 'daily_deaths', 'cumulative_deaths', 'deaths_per_1k', 'cases_rolling',
 'deaths_rolling', 'cases_weekly_chg', 'cases_weekly_per_1k', 'cases_weekly_pct_chg',]
         # 'pct_chg', 'pct_chg_7day',
         rows = []
@@ -108,6 +108,7 @@ class Command(BaseCommand):
                 'scrape_date',
                 'update_date',
                 'county__name',
+                'county__fips',
                 'daily_total_cases',
                 'cumulative_count',
                 'daily_deaths',
@@ -135,12 +136,14 @@ class Command(BaseCommand):
                     row = {
                         'date': c['scrape_date'].strftime('%Y-%m-%d'),
                         'county': c['county__name'],
+                        'fips': c['county__fips'],
                         'daily_cases': c['daily_total_cases'],
                         'daily_cases_per_1k': round(c['daily_total_cases'] / (county.pop_2019 / 1000), 1),
                         'cumulative_cases': c['cumulative_count'],
                         'cases_per_1k': round(c['cumulative_count'] / (county.pop_2019 / 1000), 1),
                         'daily_deaths': c['daily_deaths'],
                         'cumulative_deaths': c['cumulative_deaths'],
+                        'deaths_per_1k': round(c['cumulative_deaths'] / (county.pop_2019 / 1000), 1),
                         'cases_rolling': round(c['cases_rolling'], 1),
                         'deaths_rolling': round(c['deaths_rolling'], 2),
                         'cases_weekly_chg': cases_weekly_change,
@@ -155,27 +158,27 @@ class Command(BaseCommand):
             writer.writeheader()
             writer.writerows(rows)
 
-        # JSON export: Shorten col names
-        skinny_rows = []
-        for row in rows:
-            skinny_rows.append({
-                'date': row['date'],
-                'county': row['county'],
-                'daily_cases': row['daily_cases'],
-                'daily_cases_per_1k': row['daily_cases_per_1k'],
-                'cases': row['cumulative_cases'],
-                'cases_per_1k': row['cases_per_1k'],
-                'daily_deaths': row['daily_deaths'],
-                'deaths': row['cumulative_deaths'],
-                'cases_rolling': row['cases_rolling'],
-                'deaths_rolling': row['deaths_rolling'],
-                'cases_weekly_chg': row['cases_weekly_chg'],
-                'cases_weekly_per_1k': row['cases_weekly_per_1k'],
-                'cases_weekly_pct_chg': row['cases_weekly_pct_chg'],
-            })
-
-        with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_county_timeseries.json'), 'w') as jsonfile:
-            jsonfile.write(json.dumps(skinny_rows))
+        # # JSON export: Shorten col names
+        # skinny_rows = []
+        # for row in rows:
+        #     skinny_rows.append({
+        #         'date': row['date'],
+        #         'county': row['county'],
+        #         'daily_cases': row['daily_cases'],
+        #         'daily_cases_per_1k': row['daily_cases_per_1k'],
+        #         'cases': row['cumulative_cases'],
+        #         'cases_per_1k': row['cases_per_1k'],
+        #         'daily_deaths': row['daily_deaths'],
+        #         'deaths': row['cumulative_deaths'],
+        #         'cases_rolling': row['cases_rolling'],
+        #         'deaths_rolling': row['deaths_rolling'],
+        #         'cases_weekly_chg': row['cases_weekly_chg'],
+        #         'cases_weekly_per_1k': row['cases_weekly_per_1k'],
+        #         'cases_weekly_pct_chg': row['cases_weekly_pct_chg'],
+        #     })
+        #
+        # with open(os.path.join(settings.BASE_DIR, 'exports', 'mn_county_timeseries.json'), 'w') as jsonfile:
+        #     jsonfile.write(json.dumps(skinny_rows))
 
     def handle(self, *args, **options):
         today_statewide = StatewideTotalDate.objects.filter(scrape_date=datetime.date.today())

@@ -111,9 +111,10 @@ if (("${LINE_COUNT[0]}" > 2)); then
   --content-type=application/json \
   --acl public-read
 
-  aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/latest/csv/$COUNTY_TIMESERIES_TALL_FILENAME.csv \
+  gzip -vc $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv | aws s3 cp - s3://$S3_URL/latest/csv/$COUNTY_TIMESERIES_TALL_FILENAME.csv.gz \
   --content-type=text/csv \
-  --acl public-read
+  --acl public-read \
+  --content-encoding gzip
 
   aws s3 cp $EXPORTS_ROOT/mn_covid_data/$COUNTY_TIMESERIES_TALL_FILENAME.csv s3://$S3_URL/github/$COUNTY_TIMESERIES_TALL_FILENAME.csv \
   --content-type=text/csv \
