@@ -35,10 +35,11 @@ def timeseries_table_parser(table):
     return data_rows
 
 def parse_comma_int(input_str):
+    ''' Warning: Only run on fields you know will be integers. It currently replaces periods because sometimes MDH puts one in by mistake '''
     if input_str == '-':
         return None
     else:
-        return int(input_str.replace(',', ''))
+        return int(input_str.replace('.', '').replace(',', ''))
 
 def updated_today(soup):
     update_date_node = soup.find("strong", text=re.compile('Updated [A-z]+ \d{1,2}, \d{4}')).text
