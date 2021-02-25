@@ -57,6 +57,18 @@ class StatewideAgeDate(models.Model):
         super(StatewideAgeDate, self).save(*args, **kwargs)
 
 
+class StatewideRaceDate(models.Model):
+    data_date = models.DateField(db_index=True)
+    race_eth = models.CharField(max_length=100)
+    cases_total = models.IntegerField(default=None, null=True)
+    deaths_total = models.IntegerField(default=None, null=True)
+    bool_ethnicity_paired = models.BooleanField(default=True)
+    last_update = models.DateTimeField(auto_now=True)
+
+    def __str__ (self):
+        return '{}: {}'.format(self.data_date, self.race_eth)
+
+
 class StatewideCasesBySampleDate(models.Model):
     '''used for timeseries and charts'''
     sample_date = models.DateField(null=True, db_index=True)
