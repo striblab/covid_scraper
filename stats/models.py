@@ -206,14 +206,18 @@ class VacAdminTotalDate(models.Model):
     admin_total = models.IntegerField(null=True)
     admin_pfizer = models.IntegerField(null=True)
     admin_moderna = models.IntegerField(null=True)
+    admin_jj = models.IntegerField(null=True)
     admin_unknown = models.IntegerField(null=True)
 
     shipped_pfizer_total = models.IntegerField(null=True)
     shipped_moderna_total = models.IntegerField(null=True)
+    shipped_jj_total = models.IntegerField(null=True)
     shipped_pfizer_mn_providers = models.IntegerField(null=True)
     shipped_moderna_mn_providers = models.IntegerField(null=True)
+    shipped_jj_mn_providers = models.IntegerField(null=True)
     shipped_pfizer_cdc_ltc = models.IntegerField(null=True)
     shipped_moderna_cdc_ltc = models.IntegerField(null=True)
+    shipped_jj_cdc_ltc = models.IntegerField(null=True)
     providers = models.IntegerField(null=True)
 
     admin_people_total = models.IntegerField(null=True)
@@ -222,7 +226,7 @@ class VacAdminTotalDate(models.Model):
 
 
 class VacDistTotalDate(models.Model):
-    ''' Loading and exporting for this is now handled by Lambda but this model db table is still used for that'''
+    ''' More or less deprecated but keeping around for the archive'''
     released_date = models.DateField(db_index=True)
     asof_date = models.DateField(null=True, db_index=True)
 
