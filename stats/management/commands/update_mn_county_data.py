@@ -97,10 +97,13 @@ class Command(BaseCommand):
                 optional_plus = ':rotating_light: '
         return '{}{}'.format(optional_plus, f'{input_int:,}')
 
-    def slack_county_of_interest(self, record, channel):
+    def slack_county_of_interest(self, record, record_last_week, channel):
+        cases_weekly = record.cumulative_count - record_last_week.cumulative_count
+        deaths_weekly = record.cumulative_deaths - record_last_week.cumulative_deaths
+
         msg = '*{} County, {}*\n'.format(record.county.name, record.scrape_date.strftime('%B %d, %Y'))
-        msg += f'*{record.cumulative_count:,}* cases total (change of *{self.change_sign(record.daily_total_cases)}* today)\n'
-        msg += f'*{record.cumulative_deaths:,}* deaths total (change of *{self.change_sign(record.daily_deaths)}* today)\n'
+        msg += f'*{record.cumulative_count:,}* cases total (change of *{self.change_sign(record.daily_total_cases)}* today, {self.change_sign(cases_weekly)} last 7 days)\n'
+        msg += f'*{record.cumulative_deaths:,}* deaths total (change of *{self.change_sign(record.daily_deaths)}* today, {self.change_sign(deaths_weekly)} last 7 days))\n'
         msg += '\n\n\n'
 
         slack_latest(msg, channel)
@@ -126,12 +129,14 @@ class Command(BaseCommand):
                         slack_latest('*COVID daily update*\n\n', '#duluth_live')
                         for county in ['St. Louis', 'Carlton', 'Itasca', 'Lake', 'Cook']:
                             record = CountyTestDate.objects.get(county__name=county, scrape_date=datetime.date.today())
-                            self.slack_county_of_interest(record, '#duluth_live')
+                            record_last_week = CountyTestDate.objects.get(county__name=county, scrape_date=datetime.date.today() - datetime.timedelta(days=7))
+                            self.slack_county_of_interest(record, record_last_week, '#duluth_live')
 
                         slack_latest('*COVID daily update*\n\n', '#stcloud_live')
                         for county in ['Stearns', 'Benton', 'Sherburne']:
                             record = CountyTestDate.objects.get(county__name=county, scrape_date=datetime.date.today())
-                            self.slack_county_of_interest(record, '#stcloud_live')
+                            record_last_week = CountyTestDate.objects.get(county__name=county, scrape_date=datetime.date.today() - datetime.timedelta(days=7))
+                            self.slack_county_of_interest(record, record_last_week, '#stcloud_live')
 
                 else:
                     slack_latest('COVID scraper warning: No county records found.', '#robot-dojo')

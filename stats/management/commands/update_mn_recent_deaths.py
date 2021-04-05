@@ -12,34 +12,47 @@ from stats.utils import get_situation_page_content, timeseries_table_parser, par
 class Command(BaseCommand):
     help = '''Recent deaths data from the scraper. This isn't currently output anywhere but seems worth collecting.'''
 
-    def get_recent_deaths_data(self, soup):
-        today = datetime.date.today()
-        recent_deaths_table = table = soup.find("table", {'id': 'dailydeathar'})
-        recent_deaths_ages = timeseries_table_parser(recent_deaths_table)
+    def get_recent_deaths_data(self, soup, update_date):
+        # today = datetime.date.today()
+        recent_deaths_table = soup.find("table", {'id': 'dailydeathar'})
+        if recent_deaths_table:
+            recent_deaths_ages = timeseries_table_parser(recent_deaths_table)
 
-        cleaned_data = []
+            cleaned_data = []
 
-        for group in recent_deaths_ages:
-            # County workaround
-            if group['County of residence'] == 'Otter':
-                d_county_name = 'Otter Tail'
-            elif group['County of residence'] == 'Unknown/missing':
-                d_county_name = None
+            for group in recent_deaths_ages:
+                # County workaround
+                if group['County of residence'] == 'Otter':
+                    d_county_name = 'Otter Tail'
+                elif group['County of residence'] == 'Unknown/missing':
+                    d_county_name = None
+                else:
+                    d_county_name = re.sub('\s+', ' ', group['County of residence'])
+
+                print(d_county_name)
+                clean_row = {
+                    'scrape_date': update_date,
+                    'county__name': d_county_name,
+                    'age_group': group['Age group'].replace(' years', '').strip(),
+                    'count': int(group['Number of newly reported deaths']),
+                }
+                cleaned_data.append(clean_row)
+            return cleaned_data
+        else:
+            # Find out if you have an error or if there really were zero deaths
+            deaths_total_table = soup.find("table", {'id': 'dailydeathtotal'})
+            last_td = deaths_total_table.find_all("td")[-1]
+            num_deaths = int(last_td.text)
+            if num_deaths == 0:
+                print("Actual 0 death day, no error detected.")
+                return 0
             else:
-                d_county_name = re.sub('\s+', ' ', group['County of residence'])
+                print("WARNING: Couln't find recent deaths table but can't confirm 0.")
+                return None
+        return None
 
-            print(d_county_name)
-            clean_row = {
-                'scrape_date': today,
-                'county__name': d_county_name,
-                'age_group': group['Age group'].replace(' years', '').strip(),
-                'count': int(group['Number of newly reported deaths']),
-            }
-            cleaned_data.append(clean_row)
-        return cleaned_data
-
-    def load_recent_deaths(self, scraped_deaths):
-        existing_deaths = Death.objects.filter(scrape_date=datetime.date.today()).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
+    def load_recent_deaths(self, scraped_deaths, update_date):
+        existing_deaths = Death.objects.filter(scrape_date=update_date).values('scrape_date', 'county__name', 'age_group').annotate(count=Count('pk'))
 
         date_stripped_scraped = [{i:d[i] for i in d if i != 'scrape_date'} for d in scraped_deaths]
         date_stripped_existing = [{i:d[i] for i in d if i != 'scrape_date'} for d in existing_deaths]
@@ -98,21 +111,31 @@ class Command(BaseCommand):
             Death.objects.bulk_create(new_deaths)
 
     def handle(self, *args, **options):
-        html = get_situation_page_content()
+        # archive_list = [
+        #     'http://static.startribune.com.s3.amazonaws.com/news/projects/all/2021-covid-scraper/raw/html/situation_2021-03-26_1103.html',
+        #     'http://static.startribune.com.s3.amazonaws.com/news/projects/all/2021-covid-scraper/raw/html/situation_2021-03-27_1103.html',
+        #     'http://static.startribune.com.s3.amazonaws.com/news/projects/all/2021-covid-scraper/raw/html/situation_2021-03-28_1103.html'
+        # ]
+        # for url in archive_list:
+            # html = get_situation_page_content(url)  # TEMP MANUAL OVERRIDE
+        html = get_situation_page_content()  # TEMP MANUAL OVERRIDE
         if not html:
             slack_latest("COVID scraper ERROR: update_mn_recent_deaths.py can't find page HTML. Not proceeding.", '#robot-dojo')
         else:
 
             soup = BeautifulSoup(html, 'html.parser')
-            bool_updated_today, update_date = updated_today(soup)
+            # bool_updated_today, update_date = updated_today(soup, True)  # TEMP: MANUAL OVERRIDE
+            bool_updated_today, update_date = updated_today(soup)  # TEMP: MANUAL OVERRIDE
 
             if bool_updated_today:
                 print('Updated today')
-                recent_deaths_data = self.get_recent_deaths_data(soup)
-                if len(recent_deaths_data) > 0:
-                    deaths_msg_output = self.load_recent_deaths(recent_deaths_data)
+                recent_deaths_data = self.get_recent_deaths_data(soup, update_date)
+                if recent_deaths_data == None:
+                    slack_latest('COVID scraper warning: No recent deaths records found.', '#robot-dojo')
+                elif type(recent_deaths_data) == list and len(recent_deaths_data) > 0:
+                    deaths_msg_output = self.load_recent_deaths(recent_deaths_data, update_date)
                     # slack_latest(deaths_msg_output, '#robot-dojo')
                 else:
-                    slack_latest('COVID scraper warning: No recent deaths records found.', '#robot-dojo')
+                    slack_latest('COVID scraper OK: Seems to be 0-death day.', '#robot-dojo')
             else:
                 print('No update yet today')

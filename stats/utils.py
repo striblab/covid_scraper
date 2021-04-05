@@ -6,9 +6,12 @@ import requests
 
 from django.conf import settings
 
-def get_situation_page_content():
+def get_situation_page_content(url_override=False):
     headers = {'user-agent': 'Michael Corey, Star Tribune, michael.corey@startribune.com'}
-    r = requests.get('https://www.health.state.mn.us/diseases/coronavirus/situation.html', headers=headers)
+    if url_override:
+        r = requests.get(url_override, headers=headers)
+    else:
+        r = requests.get('https://www.health.state.mn.us/diseases/coronavirus/situation.html', headers=headers)
     if r.status_code == requests.codes.ok:
         return r.content
     else:
@@ -41,14 +44,19 @@ def parse_comma_int(input_str):
     else:
         return int(input_str.strip().replace('.', '').replace(',', ''))
 
-def updated_today(soup):
+def updated_today(soup, manual_override=False):
     update_date_node = soup.find("strong", text=re.compile('Updated [A-z]+ \d{1,2}, \d{4}')).text
 
     update_date = datetime.datetime.strptime(re.search('([A-z]+ \d{1,2}, \d{4})', update_date_node).group(1), '%B %d, %Y').date()
-    if update_date == datetime.datetime.now().date():
-        return True, update_date
-    else:
-        return False, update_date
+    bool_updated = False
+    if manual_override:
+        bool_updated = True
+    elif update_date == datetime.datetime.now().date():
+        bool_updated = True
+    # else:
+    #     return False, update_date
+
+    return bool_updated, update_date
 
 def slack_latest(text, channel):
     MAX_BLOCK_LENGTH = 3000

@@ -39,9 +39,7 @@ class Command(BaseCommand):
 
     def change_sign(self, input_int):
         optional_plus = ''
-        if not input_int:
-            return '+:shrug:'
-        elif input_int != 0:
+        if input_int != 0:
             optional_plus = '+'
             if input_int < 0:
                 optional_plus = ':rotating_light: '
