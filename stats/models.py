@@ -258,3 +258,13 @@ class VacGenderDate(models.Model):
     people_admin = models.IntegerField(null=True)
     people_admin_completed = models.IntegerField(null=True)
     update_date = models.DateTimeField(auto_now=True)
+
+
+class VacCountyAgePercentageDate(models.Model):
+    county = models.CharField(max_length=50, db_index=True)
+    released_date = models.DateField(db_index=True)
+    asof_date = models.DateField(null=True, db_index=True)
+    age_group = models.CharField(max_length=20, db_index=True)
+    pct_one_dose_plus = models.FloatField(null=True)
+    pct_completed_series = models.FloatField(null=True)
+    update_date = models.DateTimeField(auto_now=True)

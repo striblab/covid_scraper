@@ -13,7 +13,7 @@ class Command(BaseCommand):
     help = 'Get daily figures for daily death residence type'
 
     S3_HTML_BUCKET = 'static.startribune.com'
-    S3_HTML_PATH = settings.S3_EXPORT_PREFIX
+    S3_HTML_PATH = 'news/projects/all/2021-covid-scraper/raw'
 
     def handle(self, *args, **options):
         session = boto3.Session(
